@@ -1,164 +1,212 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb,IoWater } from 'react-icons/io5';
+import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
-import { abi } from '../../../abi';
-import { parseEther } from 'viem';
-import { morphHolesky } from 'viem/chains';
+import {
+  AptosFaucetClient,
+  FundRequest,
+} from "@aptos-labs/aptos-faucet-client";
+const MODULE_ADDRESS = '0x5e4a0b20b0d20f701526a21288ae092f7876bb43698aa794c61110099b48bc5b';
+const config = new AptosConfig({ network: Network.DEVNET });
+const aptos = new Aptos(config);
+import toast, { Toaster } from "react-hot-toast";
 
-const contractAddress = '0x779d7026FA2100C97AE5E2e8381f6506D5Bf31D4';
-const PREDICTOR_ROLE = '0xfe9eaad5f5acc86dfc672d62b2c2acc0fccbdc369951a11924b882e2c44ed506';
 
-const usePredictionDetails = (id) => {
-  return useReadContract({
-    address: contractAddress,
-    abi: abi,
-    functionName: 'getPredictionDetails',
-    args: [id],
-  });
-};
+interface PredictionData {
+  id: string;
+  description: string;
+  end_time: string;
+  start_time: string;
+  state: { value: number };
+  yes_votes: string;
+  no_votes: string;
+  yes_price: string;
+  no_price: string;
+  total_bet: string;
+  total_votes: string;
+  result: number;
+}
 
 const Dashboard = () => {
-  const [predictionIds, setPredictionIds] = useState([]);
+  const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGeneratePopupOpen, setIsGeneratePopupOpen] = useState(false);
-  const { address, isConnected } = useAccount();
-  const [isPredictorRole, setIsPredictorRole] = useState(false);
+  const { account, connected, signAndSubmitTransaction } = useWallet();
+  const [isAdminRole, setIsAdminRole] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [topic, setTopic] = useState('');
   const [generatedPredictions, setGeneratedPredictions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-
-  const PRICE_FEED_IDS = {
-    'BTC/USD': '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
-    'BNB/USD': '0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f',
-    'SOL/USD': '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
-    'ETH/USD': '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
-};
-
-
-  const { data: predictionCount, refetch: refetchCount } = useReadContract({
-    address: contractAddress,
-    abi: abi,
-    functionName: 'predictionCounter',
+  const [newPrediction, setNewPrediction] = useState({
+    description: '',
+    duration: '',
   });
 
-  const { data: hasPredictorRole } = useReadContract({
-    address: contractAddress,
-    abi: abi,
-    functionName: 'hasRole',
-    args: [PREDICTOR_ROLE, address],
-  });
+  useEffect(() => {
+    checkAdminRole();
+    fetchPredictions();
+  }, [account]);
 
-  const { writeContract } = useWriteContract();
-
-  const { isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash: undefined,
-  });
-
-
-  const handleRequestFunds = async () => {
-    if (!isConnected || !address) {
-      console.error('Wallet not connected');
-      return;
+  const checkAdminRole = async () => {
+    if (connected && account) {
+      try {
+        const result = await aptos.view({
+          payload: {
+            function: `${MODULE_ADDRESS}::hashpredictalpha::get_admin`,
+            typeArguments: [],
+            functionArguments: []
+          }
+        });
+        setIsAdminRole(result[0] === account.address);
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+      }
     }
+  };
 
+  const processMoveValue = (value: MoveValue): any => {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return value;
+    } else if (typeof value === 'object' && value !== null) {
+      if (Array.isArray(value)) {
+        return value.map(processMoveValue);
+      } else if ('value' in value) {
+        return processMoveValue(value.value);
+      } else {
+        const processedObject: { [key: string]: any } = {};
+        for (const key in value) {
+          processedObject[key] = processMoveValue(value[key]);
+        }
+        return processedObject;
+      }
+    }
+    return null;
+  };
+
+  const fetchPredictions = async () => {
+    setIsLoading(true);
     try {
-      const response = await axios.post('https://ai-predict-fcdw.onrender.com/request-eth', { address });
-      console.log('Funds requested:', response.data);
-      // You might want to show a success message to the user here
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::get_all_predictions`,
+          typeArguments: [],
+          functionArguments: []
+        }
+      });
+      console.log('Raw result:', JSON.stringify(result, null, 2));
+
+      let predictionsArray = result;
+      if (Array.isArray(result) && result.length === 1 && Array.isArray(result[0])) {
+        predictionsArray = result[0];
+      }
+
+      if (!Array.isArray(predictionsArray)) {
+        console.error('Expected an array of predictions, but received:', typeof predictionsArray);
+        setPredictions([]);
+        return;
+      }
+
+      const processedPredictions: PredictionData[] = predictionsArray.map((prediction: any, index: number) => {
+        console.log(`Processing prediction ${index}:`, JSON.stringify(prediction, null, 2));
+        
+        try {
+          return {
+            id: prediction.id?.toString() ?? '',
+            description: prediction.description?.toString() ?? '',
+            end_time: prediction.end_time?.toString() ?? '',
+            start_time: prediction.start_time?.toString() ?? '',
+            state: { value: Number(prediction.state?.value ?? 0) },
+            yes_votes: prediction.yes_votes?.toString() ?? '0',
+            no_votes: prediction.no_votes?.toString() ?? '0',
+            yes_price: prediction.yes_price?.toString() ?? '0',
+            no_price: prediction.no_price?.toString() ?? '0',
+            total_bet: prediction.total_bet?.toString() ?? '0',
+            total_votes: prediction.total_votes?.toString() ?? '0',
+            result: Number(prediction.result ?? 0),
+          };
+        } catch (error) {
+          console.error(`Error processing prediction ${index}:`, error);
+          return null;
+        }
+      }).filter((prediction): prediction is PredictionData => prediction !== null);
+
+      console.log('Final processed predictions:', JSON.stringify(processedPredictions, null, 2));
+      setPredictions(processedPredictions);
     } catch (error) {
-      console.error('Error requesting funds:', error);
-      // You might want to show an error message to the user here
+      console.error('Error fetching predictions:', error);
+      setPredictions([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
 
-  useEffect(() => {
-    if (predictionCount) {
-      const count = Number(predictionCount);
-      setPredictionIds(Array.from({ length: count }, (_, i) => BigInt(i)));
+  
+  const handleRequestFunds = async () => {
+    if (!connected || !account) {
+      toast.error('Wallet not connected');
+      return;
     }
-  }, [predictionCount]);
 
-  useEffect(() => {
-    if (hasPredictorRole !== undefined) {
-      setIsPredictorRole(!!hasPredictorRole);
+    try {
+      const response = await axios.post('https://faucet.devnet.aptoslabs.com/mint', null, {
+        params: {
+          amount: 10000000,
+          address: account.address,
+        },
+      });
+      toast.success('Funds requested successfully');
+      console.log('Funds requested:', response.data);
+    } catch (error) {
+      toast.error('Error requesting funds. Please try again.');
+      console.error('Error requesting funds:', error);
     }
-  }, [hasPredictorRole]);
-
-  const handlePredict = async (id, isYes, amount) => {
-    if (!isConnected || !address) {
+  };
+  const handlePredict = async (id: string, verdict: boolean, share: number) => {
+    if (!connected || !account) {
       console.error('Wallet not connected');
       return;
     }
 
     try {
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'placeVotes',
-        args: [BigInt(id), isYes ? BigInt(0) : BigInt(1), BigInt(amount)],
-        value: parseEther((amount * 0.001).toString()),
-        chain: morphHolesky,
-        account: address
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::predict`,
+          typeArguments: [],
+          functionArguments: [id, verdict, share, false] // false for not using CHIP tokens
+        },
       });
+      // Refresh predictions after prediction is made
+      fetchPredictions();
     } catch (error) {
       console.error('Error making prediction:', error);
     }
   };
 
-  useEffect(() => {
-    if (isConfirmed) {
-      refetchCount();
-    }
-  }, [isConfirmed, refetchCount]);
-
-  const [newPrediction, setNewPrediction] = useState({
-    description: '',
-    duration: '',
-    minVotes: '',
-    maxVotes: '',
-    predictionType: '0',
-    optionsCount: '2',
-    tags: '',
-  });
-
   const handleCreatePrediction = async () => {
-    if (!isConnected || !address) {
+    if (!connected || !account) {
       console.error('Wallet not connected');
       return;
     }
 
     try {
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'createPrediction',
-        args: [
-          newPrediction.description,
-          BigInt(newPrediction.duration),
-          BigInt(newPrediction.minVotes),
-          BigInt(newPrediction.maxVotes),
-          parseInt(newPrediction.predictionType),
-          BigInt(newPrediction.optionsCount),
-          newPrediction.tags.split(',').map(tag => tag.trim())
-        ],
-        chain: morphHolesky,
-        account: address
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::create_prediction`,
+          typeArguments: [],
+          functionArguments: [newPrediction.description, parseInt(newPrediction.duration)]
+        },
       });
       setIsModalOpen(false);
+      fetchPredictions(); // Refresh predictions after creating a new one
       setNewPrediction({
         description: '',
-        duration: '',
-        minVotes: '',
-        maxVotes: '',
-        predictionType: '0',
-        optionsCount: '2',
-        tags: '',
+        duration: ''
       });
     } catch (error) {
       console.error('Error creating prediction:', error);
@@ -177,81 +225,92 @@ const Dashboard = () => {
     setIsGenerating(false);
   };
 
-  const handleSelectPrediction = (prediction) => {
+  const handleSelectPrediction = (prediction: any) => {
     setNewPrediction({
       description: prediction.description,
       duration: prediction.duration.toString(),
-      minVotes: prediction.minVotes.toString(),
-      maxVotes: prediction.maxVotes.toString(),
-      predictionType: prediction.predictionType.toString(),
-      optionsCount: prediction.optionsCount.toString(),
-      tags: prediction.tags.join(', '),
     });
     setIsGeneratePopupOpen(false);
     setIsModalOpen(true);
   };
 
-  const handleFinalizeWithAI = async (predictionId) => {
-    try {
-      const response = await axios.post(`https://ai-predict-fcdw.onrender.com/finalize-prediction/${predictionId}`);
-      console.log('Prediction finalized with AI:', response.data);
-      // You might want to update the UI or refetch the predictions here
-    } catch (error) {
-      console.error('Error finalizing prediction with AI:', error);
-    }
-  };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
-      <div className="flex justify-between items-center mb-6">
-
-      <div className="flex flex-col space-y-4 mb-6">
-  <h1 className="text-2xl font-bold text-navy-700 dark:text-white">Prediction Dashboard</h1>
-  <div className="flex flex-wrap gap-2">
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={handleRequestFunds}
-      className="bg-blue-400 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
-    >
-      <IoWater className="mr-1" /> Request Funds
-    </motion.button>
-    {isPredictorRole && (
-      <>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsModalOpen(true)}
-          className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
-        >
-          <IoAdd className="mr-1" /> Create
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsGeneratePopupOpen(true)}
-          className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
-        >
-          <IoBulb className="mr-1" /> Generate
-        </motion.button>
-      </>
-    )}
-  </div>
-</div>
+    <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
+      <Toaster />
+    <div className="max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-navy-700 dark:text-white">Prediction Dashboard</h1>
+        <div className="flex space-x-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleRequestFunds}
+            className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+          >
+            <IoWater className="mr-2" /> Request Funds
+          </motion.button>
+          {isAdminRole && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsModalOpen(true)}
+                className="bg-green-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+              >
+                <IoAdd className="mr-2" /> Create
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsGeneratePopupOpen(true)}
+                className="bg-purple-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+              >
+                <IoBulb className="mr-2" /> Generate
+              </motion.button>
+            </>
+          )}
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {predictionIds.map((id) => (
-          <PredictionCard
-            key={Number(id)}
-            predictionId={id}
-            usePredictionDetails={usePredictionDetails}
-            onPredict={handlePredict}
-            contractAddress={contractAddress}
-            abi={abi}
-          />
-        ))}
-      </div>
-
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6 animate-pulse">
+              <div className="h-6 bg-gray-200 dark:bg-navy-700 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 dark:bg-navy-700 rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-navy-700 rounded w-1/3 mb-4"></div>
+              <div className="h-20 bg-gray-200 dark:bg-navy-700 rounded mb-4"></div>
+              <div className="h-10 bg-gray-200 dark:bg-navy-700 rounded"></div>
+            </div>
+          ))}
+        </div>
+      ) : predictions.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {predictions.map((prediction) => (
+            <PredictionCard
+              key={prediction.id}
+              prediction={prediction}
+              onPredict={handlePredict}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-4">No predictions available</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">Create a new prediction to get started!</p>
+          {isAdminRole && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsModalOpen(true)}
+              className="bg-green-500 text-white rounded-lg py-3 px-6 text-lg font-semibold flex items-center justify-center mx-auto"
+            >
+              <IoAdd className="mr-2" /> Create Prediction
+            </motion.button>
+          )}
+        </div>
+      )}
+    </div>
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
@@ -285,44 +344,6 @@ const Dashboard = () => {
                   value={newPrediction.duration}
                   onChange={(e) => setNewPrediction({...newPrediction, duration: e.target.value})}
                   placeholder="Duration (seconds)"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <input
-                  type="number"
-                  value={newPrediction.minVotes}
-                  onChange={(e) => setNewPrediction({...newPrediction, minVotes: e.target.value})}
-                  placeholder="Min Votes"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <input
-                  type="number"
-                  value={newPrediction.maxVotes}
-                  onChange={(e) => setNewPrediction({...newPrediction, maxVotes: e.target.value})}
-                  placeholder="Max Votes"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <select
-                  value={newPrediction.predictionType}
-                  onChange={(e) => setNewPrediction({...newPrediction, predictionType: e.target.value})}
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                >
-                  <option value="0">Binary</option>
-                  <option value="1">Multiple Choice</option>
-                  <option value="2">Range</option>
-                  
-                </select>
-                <input
-                  type="number"
-                  value={newPrediction.optionsCount}
-                  onChange={(e) => setNewPrediction({...newPrediction, optionsCount: e.target.value})}
-                  placeholder="Options Count"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <input
-                  type="text"
-                  value={newPrediction.tags}
-                  onChange={(e) => setNewPrediction({...newPrediction, tags: e.target.value})}
-                  placeholder="Tags (comma-separated)"
                   className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
                 />
                 <button
@@ -366,7 +387,7 @@ const Dashboard = () => {
                 <button
                   onClick={handleGeneratePredictions}
                   disabled={isGenerating}
-                  className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 hover:bg-purple-600 transition-colors"
+                  className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 hover:bg-purple-600 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed"
                 >
                   {isGenerating ? 'Generating...' : 'Generate Predictions'}
                 </button>
@@ -379,7 +400,6 @@ const Dashboard = () => {
                   >
                     <h3 className="font-bold text-navy-700 dark:text-white mb-2">{prediction.description}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Duration: {prediction.duration} seconds</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Tags: {prediction.tags.join(', ')}</p>
                   </motion.div>
                 ))}
               </div>

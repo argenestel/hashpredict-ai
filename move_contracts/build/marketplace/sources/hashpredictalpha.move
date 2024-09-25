@@ -194,6 +194,13 @@ public entry fun create_prediction(
             share * SHARE_AMOUNT
         };
 
+         let apt_equivalent = if (use_chip) {
+        share * SHARE_AMOUNT // Convert CHIP to APT equivalent
+    } else {
+        required_amount
+    };
+
+
         if (use_chip) {
             assert!(chip_token::balance(account_addr) >= required_amount, E_INSUFFICIENT_FUNDS);
             chip_token::burn(account, account_addr, required_amount);
@@ -206,20 +213,20 @@ public entry fun create_prediction(
         prediction.total_votes = prediction.total_votes + 1;
         if (verdict) {
             prediction.yes_votes = prediction.yes_votes + 1;
-            prediction.yes_price = prediction.yes_price + required_amount;
+            prediction.yes_price = prediction.yes_price + apt_equivalent;
         } else {
             prediction.no_votes = prediction.no_votes + 1;
-            prediction.no_price = prediction.no_price + required_amount;
+            prediction.no_price = prediction.no_price + apt_equivalent;
         };
 
         // Record prediction
         vector::push_back(user_prediction_vector, UserPrediction { share, verdict, is_chip: use_chip });
 
         // Update total bet
-        prediction.total_bet = prediction.total_bet + required_amount;
+        prediction.total_bet = prediction.total_bet + apt_equivalent;
 
         // Record prediction in user account
-        user_account::record_prediction(account_addr, prediction_id, required_amount, use_chip, verdict);
+        user_account::record_prediction(account_addr, prediction_id, apt_equivalent, use_chip, verdict);
 
         event::emit_event(&mut market_state.prediction_made_events, PredictionMadeEvent {
             prediction_id,

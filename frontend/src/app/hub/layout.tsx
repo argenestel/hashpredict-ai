@@ -33,13 +33,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    document.documentElement.classList.add('dark');
+    // document.documentElement.classList.add('dark');
 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   return (
     <div className="flex h-full w-full bg-background-100 dark:bg-navy-900">
+      
           <DynamicContextProvider
           settings={{
             environmentId: "8d1a0fcf-94bc-4ca7-bbe0-0d36017f8084",

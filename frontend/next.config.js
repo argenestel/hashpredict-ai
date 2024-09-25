@@ -25,10 +25,7 @@ const nextConfig = {
     ],
     // Make ENV
     unoptimized: true,
-  },
-  experimental: {
-    appDir: true,
-  },
+  }
 };
 
 module.exports = nextConfig;

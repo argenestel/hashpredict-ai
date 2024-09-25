@@ -7,7 +7,7 @@ export default function RootHead() {
 			<link
 				rel="shortcut icon"
 				type="image/x-icon"
-				href={process.env.NEXT_PUBLIC_BASE_PATH || '' + '/favicon.ico'}
+				href={process.env.NEXT_PUBLIC_BASE_PATH || 'https://ipfs.io/ipfs/QmXsAkjzhLXxvq6pYVWtNi96oFiBorR1JzLBjW8jTvhgyp'}
 			/>
 
 		  <title>Horizon UI PRO NextJS</title>

@@ -1,70 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign, IoCheckmark, IoClose, IoCash, IoBulb } from 'react-icons/io5';
-import { useReadContract, useWriteContract, useAccount } from 'wagmi';
-import { parseEther } from 'viem';
-import { morphHolesky } from 'viem/chains';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown } from 'react-icons/io5';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import axios from 'axios';
 
 interface PredictionCardProps {
-  predictionId: bigint;
-  usePredictionDetails: (id: bigint) => any;
-  onPredict: (id: number, isYes: boolean, amount: number) => void;
-  contractAddress: `0x${string}`;
-  abi: any;
+  prediction: {
+    id: string;
+    description: string;
+    end_time: string;
+    start_time: string;
+    state: { value: number };
+    yes_votes: string;
+    no_votes: string;
+    yes_price: string;
+    no_price: string;
+    total_bet: string;
+    total_votes: string;
+    result: number;
+  };
+  onPredict: (id: string, verdict: boolean, share: number) => void;
 }
 
-const ADMIN_ROLE = '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775';
-const ORACLE_ROLE = '0x68e79a7bf1e0bc45d0a330c573bc37be4d8f69e2c52ed8096fdddca5aaefaa0c';
+const MODULE_ADDRESS = '0x5e4a0b20b0d20f701526a21288ae092f7876bb43698aa794c61110099b48bc5b';
+const config = new AptosConfig({ network: Network.DEVNET });
+const aptos = new Aptos(config);
 
-const PredictionCard: React.FC<PredictionCardProps> = ({ 
-  predictionId, 
-  usePredictionDetails, 
-  onPredict,
-  contractAddress,
-  abi
-}) => {
+const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }) => {
   const [shareAmount, setShareAmount] = useState(1);
   const [isYesSelected, setIsYesSelected] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isOracle, setIsOracle] = useState(false);
   const [outcome, setOutcome] = useState<number>(0);
   const [isAIFinalizing, setIsAIFinalizing] = useState(false);
-  const { data: prediction, isLoading } = usePredictionDetails(predictionId);
-  const { address } = useAccount();
-  const { writeContract } = useWriteContract();
-
-  const { data: hasAdminRole } = useReadContract({
-    address: contractAddress,
-    abi: abi,
-    functionName: 'hasRole',
-    args: [ADMIN_ROLE, address as `0x${string}`],
-  });
-
-  const { data: hasOracleRole } = useReadContract({
-    address: contractAddress,
-    abi: abi,
-    functionName: 'hasRole',
-    args: [ORACLE_ROLE, address as `0x${string}`],
-  });
+  const { account, signAndSubmitTransaction } = useWallet();
 
   const [isPredictionEnded, setIsPredictionEnded] = useState(false);
 
   useEffect(() => {
     if (prediction) {
-      const [, endTime] = prediction;
-      setIsPredictionEnded(Date.now() / 1000 > Number(endTime));
+      setIsPredictionEnded(Date.now() / 1000 > Number(prediction.end_time));
     }
   }, [prediction]);
 
+  useEffect(() => {
+    checkAdminRole();
+  }, [account]);
+
+  const checkAdminRole = async () => {
+    if (account) {
+      try {
+        const adminAddress = await aptos.view({
+          payload: {
+            function: `${MODULE_ADDRESS}::hashpredictalpha::get_admin`,
+            typeArguments: [],
+            functionArguments: []
+          }
+        });
+        setIsAdmin(adminAddress[0] === account.address);
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+      }
+    }
+  };
+
   const handleFinalize = async (useAI = false) => {
-    if (!address) return;
+    if (!account) return;
     try {
       let finalOutcome;
       if (useAI) {
         setIsAIFinalizing(true);
         try {
-          const response = await axios.post(`https://ai-predict-fcdw.onrender.com/finalize-prediction/${predictionId}`);
+          const response = await axios.post(`https://ai-predict-fcdw.onrender.com/finalize-prediction/${prediction.id}`);
           finalOutcome = response.data.outcome;
         } catch (error) {
           console.error('Error finalizing with AI:', error);
@@ -75,13 +82,12 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
         finalOutcome = outcome;
       }
 
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'finalizePrediction',
-        args: [predictionId, BigInt(finalOutcome)],
-        chain: morphHolesky,
-        account: address
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::resolve_prediction`,
+          typeArguments: [],
+          functionArguments: [prediction.id, finalOutcome]
+        },
       });
       
       console.log(`Prediction finalized ${useAI ? 'with AI' : 'by admin'}`);
@@ -92,28 +98,22 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     }
   };
 
-  useEffect(() => {
-    setIsAdmin(!!hasAdminRole);
-    setIsOracle(!!hasOracleRole);
-  }, [hasAdminRole, hasOracleRole]);
-
   const handleIncrement = () => setShareAmount(prev => prev + 1);
   const handleDecrement = () => setShareAmount(prev => Math.max(1, prev - 1));
 
   const handlePredict = () => {
-    onPredict(Number(predictionId), isYesSelected, shareAmount);
+    onPredict(prediction.id, isYesSelected, shareAmount);
   };
 
   const handleCancel = async () => {
-    if (!address) return;
+    if (!account) return;
     try {
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'cancelPrediction',
-        args: [predictionId],
-        chain: morphHolesky,
-        account: address
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::pause_prediction`,
+          typeArguments: [],
+          functionArguments: [prediction.id]
+        },
       });
     } catch (error) {
       console.error('Error cancelling prediction:', error);
@@ -121,22 +121,32 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   };
 
   const handleDistributeRewards = async () => {
-    if (!address) return;
+    if (!account) return;
     try {
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'distributeRewards',
-        args: [predictionId],
-        chain: morphHolesky,
-        account: address
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::mass_withdraw`,
+          typeArguments: [],
+          functionArguments: [prediction.id]
+        },
       });
     } catch (error) {
       console.error('Error distributing rewards:', error);
     }
   };
+  const calculatePotentialPayout = (selectedYes: boolean) => {
+    const betAmount = shareAmount * 0.01 * 1e8; // Convert to octas (0.01 APT per share)
+    const totalPool = Number(prediction.total_bet);
+    const selectedPool = selectedYes ? Number(prediction.yes_votes) : Number(prediction.no_votes);
+    const oppositePool = selectedYes ? Number(prediction.no_votes) : Number(prediction.yes_votes);
+    
+    if (totalPool === 0 || selectedPool === 0) return 0;
 
-  const formatTime = (timestamp: bigint) => {
+    const payoutRatio = totalPool / selectedPool;
+    const potentialPayout = (betAmount * payoutRatio) / 1e8; // Convert back to APT
+    return potentialPayout;
+  };
+  const formatTime = (timestamp: string) => {
     const date = new Date(Number(timestamp) * 1000);
     return date.toLocaleString('en-US', { 
       month: 'short', 
@@ -146,99 +156,137 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     });
   };
 
-  const calculatePercentage = (votes: bigint, total: bigint) => {
+  const calculatePercentage = (votes: string, total: string) => {
     const votesNum = Number(votes) || 0;
     const totalNum = Number(total) || 0;
     return totalNum > 0 ? (votesNum / totalNum) * 100 : 50;
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full h-64 p-4 flex items-center justify-center bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
-        <div className="animate-pulse flex flex-col items-center space-y-4 w-full">
-          <div className="h-6 bg-gray-300 dark:bg-navy-600 rounded w-3/4"></div>
-          <div className="h-4 bg-gray-300 dark:bg-navy-600 rounded w-1/2"></div>
-          <div className="h-2 bg-gray-300 dark:bg-navy-600 rounded w-full"></div>
-          <div className="flex space-x-4 w-full">
-            <div className="h-8 bg-gray-300 dark:bg-navy-600 rounded w-1/2"></div>
-            <div className="h-8 bg-gray-300 dark:bg-navy-600 rounded w-1/2"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatAPT = (amount: string) => {
+    return (Number(amount) / 1e8).toFixed(2);
+  };
 
-  if (!prediction) {
-    return null;
-  }
+  const { id, description, end_time, state, yes_votes, no_votes, yes_price, no_price, total_bet, total_votes, result } = prediction;
 
-  const [description, endTime, status, totalVotes, predictionOutcome, minVotes, maxVotes, predictionType, creator, creationTime, tags, optionsCount, totalBetAmount] = prediction;
+  const yesPercentage = calculatePercentage(yes_votes, total_votes);
+  const noPercentage = calculatePercentage(no_votes, total_votes);
+  const stateValue = typeof state === 'object' && state !== null ? state.value : (typeof state === 'number' ? state : 0);
 
-  const yesVotes = totalVotes[0] ? Number(totalVotes[0]) : 0;
-  const noVotes = totalVotes[1] ? Number(totalVotes[1]) : 0;
-  const totalVotesCount = yesVotes + noVotes;
+  const isActive = stateValue === 0;
+  const isFinalized = stateValue === 2;
+  const isCancelled = stateValue === 1;
+  const totalApt = formatAPT(total_bet);
 
-  const yesPercentage = calculatePercentage(BigInt(yesVotes), BigInt(totalVotesCount));
-  const noPercentage = calculatePercentage(BigInt(noVotes), BigInt(totalVotesCount));
-
-  const isActive = status === 0;
-  const isFinalized = status === 1;
-  const isCancelled = status === 2;
-  const totalEth = Number(totalBetAmount) / 1e18; // Convert from Wei to ETH
+  const potentialPayout = calculatePotentialPayout(isYesSelected);
 
   return (
-    <div className="w-full h-full bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col">
-      <div className="p-4 flex-grow">
-        <h2 className="text-lg font-bold text-navy-700 dark:text-white mb-2 line-clamp-2">
+    <motion.div 
+      className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="p-6 flex-grow">
+        <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
           {description}
         </h2>
-        <div className="flex items-center justify-between mb-4 text-sm text-gray-600 dark:text-gray-400">
-          <div className="flex items-center">
-            <IoTimeOutline className="mr-1" />
-            <span>Ends: {formatTime(endTime)}</span>
+        <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
+          <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
+            <IoTimeOutline className="mr-2 text-brand-500" />
+            <span>Ends: {formatTime(end_time)}</span>
           </div>
-          <div className="flex items-center">
-            <IoWalletOutline className="mr-1" />
-            <span>{totalEth.toFixed(4)} ETH</span>
+          <div className="flex items-center bg-brand-100 dark:bg-brand-900 rounded-full px-3 py-1">
+            <IoWalletOutline className="mr-2 text-brand-500" />
+            <span className="font-semibold text-brand-700 dark:text-brand-300">
+              Pool: {totalApt} APT
+            </span>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2 mb-4">
-          <div className="flex-grow">
-            <div className="w-full bg-gray-200 dark:bg-navy-700 rounded-full h-2 overflow-hidden">
-              <motion.div 
-                className="h-full rounded-full bg-gradient-to-r from-green-400 to-brand-500 dark:from-green-500 dark:to-brand-400"
-                initial={{ width: 0 }}
-                animate={{ width: `${yesPercentage}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            <motion.span 
+              className="text-sm font-medium text-green-500 dark:text-green-400 flex items-center"
+              initial={{ x: -10, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <IoTrendingUp className="mr-1" />
+              Yes: {yesPercentage.toFixed(1)}%
+            </motion.span>
+            <motion.span 
+              className="text-sm font-medium text-red-500 dark:text-red-400 flex items-center"
+              initial={{ x: 10, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <IoTrendingDown className="mr-1" />
+              No: {noPercentage.toFixed(1)}%
+            </motion.span>
           </div>
-          <span className="text-sm font-medium text-green-500 dark:text-green-400 w-12 text-right">{yesPercentage.toFixed(1)}%</span>
-          <span className="text-sm font-medium text-red-500 dark:text-red-400 w-12 text-right">{noPercentage.toFixed(1)}%</span>
+          <div className="w-full bg-gray-200 dark:bg-navy-700 rounded-full h-3 overflow-hidden relative">
+            <motion.div 
+              className="absolute left-0 h-full rounded-full bg-gradient-to-r from-green-400 to-brand-500 dark:from-green-500 dark:to-brand-400"
+              initial={{ width: 0 }}
+              animate={{ width: `${yesPercentage}%` }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            />
+            <motion.div 
+              className="absolute right-0 h-full rounded-full bg-gradient-to-l from-red-400 to-brand-400 dark:from-red-500 dark:to-brand-300"
+              initial={{ width: 0 }}
+              animate={{ width: `${noPercentage}%` }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-2">
-          <IoTrailSign className="mr-1" />
-          {tags.map((tag, index) => (
-            <span key={index} className="mr-2 bg-gray-200 dark:bg-navy-700 px-2 py-1 rounded-full text-xs">
-              {tag}
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-3">
+            <p className="font-semibold mb-1">Yes Votes: {Number(yes_votes).toLocaleString()}</p>
+            <p>Yes Price: {formatAPT(yes_price)} APT</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-3">
+            <p className="font-semibold mb-1">No Votes: {Number(no_votes).toLocaleString()}</p>
+            <p>No Price: {formatAPT(no_price)} APT</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-navy-700 dark:text-white flex items-center text-sm font-medium">
+            Status: 
+            <span className={`ml-2 px-2 py-1 rounded-full ${
+              isActive ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+              isFinalized ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100' :
+              'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
+            }`}>
+              {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}
             </span>
-          ))}
+          </div>
+          {isActive && (
+            <div className="text-navy-700 dark:text-white flex items-center text-sm font-medium">
+              Potential Payout: 
+              <span className="ml-2 px-2 py-1 rounded-full bg-brand-100 text-brand-800 dark:bg-brand-800 dark:text-brand-100">
+                {potentialPayout.toFixed(2)} APT
+              </span>
+            </div>
+          )}
         </div>
-
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <p>Min Votes: {Number(minVotes)}</p>
-          <p>Creator: {creator.slice(0, 6)}...{creator.slice(-4)}</p>
-          <p>Created: {formatTime(creationTime)}</p>
-          <p>Status: {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}</p>
-          {isFinalized && <p>Outcome: {Number(predictionOutcome) === 0 ? 'Yes' : 'No'}</p>}
-        </div>
+        {isFinalized && (
+          <p className="text-navy-700 dark:text-white mt-4 text-sm font-medium">
+            Result: 
+            <span className={`ml-2 px-2 py-1 rounded-full ${
+              result === 0 ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+              result === 1 ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' :
+              'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'
+            }`}>
+              {result === 0 ? 'Yes' : result === 1 ? 'No' : 'Undefined'}
+            </span>
+          </p>
+        )}
       </div>
 
-      {isActive && (
-        <div className="p-4 bg-gray-50 dark:bg-navy-900">
-          <div className="flex items-center justify-between mb-3">
+      {isActive && !isPredictionEnded && (
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2 flex-grow">
               <motion.button 
                 whileHover={{ scale: 1.05 }}
@@ -266,49 +314,53 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
               </motion.button>
             </div>
           </div>
-          <div className="flex items-center space-x-2 mb-3">
+          <div className="flex items-center space-x-2 mb-4">
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleDecrement}
-              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-1"
+              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2"
             >
-              <IoRemove size={14} />
+              <IoRemove size={16} />
             </motion.button>
             <input 
               type="number" 
               value={shareAmount}
               onChange={(e) => setShareAmount(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-16 text-center border dark:border-navy-600 rounded-lg py-1 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
+              className="w-20 text-center border dark:border-navy-600 rounded-lg py-2 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
             />
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleIncrement}
-              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-1"
+              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2"
             >
-              <IoAdd size={14} />
+              <IoAdd size={16} />
             </motion.button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              ({(shareAmount * 0.01).toFixed(2)} APT)
+            </span>
           </div>
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handlePredict}
-            className="w-full bg-gradient-to-r from-brand-400 to-brand-500 dark:from-brand-500 dark:to-brand-400 text-white rounded-lg py-2 px-4 transition-all duration-200 text-sm font-medium"
+            className="w-full bg-gradient-to-r from-brand-400 to-brand-500 dark:from-brand-500 dark:to-brand-400 text-white rounded-lg py-3 px-4 transition-all duration-200 text-sm font-medium"
           >
             Predict
           </motion.button>
         </div>
       )}
 
+
       {isAdmin && isActive && isPredictionEnded && (
-        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-center space-x-2 mb-2">
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="flex flex-col space-y-3">
+            <div className="flex items-center space-x-2">
               <select 
                 value={outcome}
                 onChange={(e) => setOutcome(parseInt(e.target.value))}
-                className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600"
+                className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600 text-sm"
               >
                 <option value={0}>Yes</option>
                 <option value={1}>No</option>
@@ -336,7 +388,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
                 </>
               ) : (
                 <>
-                  <IoBulb className="mr-1" /> Finalize with AI
+                  <IoBulb className="mr-2" /> Finalize with AI
                 </>
               )}
             </motion.button>
@@ -344,64 +396,56 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
         </div>
       )}
 
-      {(isAdmin || isOracle) && isActive && (
-        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
-          <div className="flex flex-col space-y-2">
-            {isOracle && (
-              <div className="flex items-center space-x-2 mb-2">
-                <select 
-                  value={outcome}
-                  onChange={(e) => setOutcome(parseInt(e.target.value))}
-                  className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600"
-                >
-                  <option value={0}>Yes</option>
-                  <option value={1}>No</option>
-                </select>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleFinalize(false)}
-                  className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center"
-                >
-                  <IoCheckmark className="mr-1" /> Finalize
-                </motion.button>
-              </div>
-            )}
-            {isAdmin && (
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCancel}
-                className="bg-red-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
-              >
-                <IoClose className="mr-1" /> Cancel Prediction
-              </motion.button>
-            )}
-          </div>
+      {isAdmin && isActive && (
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCancel}
+            className="w-full bg-red-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+          >
+            <IoClose className="mr-2" /> Cancel Prediction
+          </motion.button>
         </div>
       )}
 
       {isAdmin && isFinalized && (
-        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleDistributeRewards}
             className="w-full bg-green-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
           >
-            <IoCash className="mr-1" /> Distribute Rewards
+            <IoCash className="mr-2" /> Distribute Rewards
           </motion.button>
         </div>
       )}
-
-      {(isFinalized || isCancelled) && !isAdmin && (
-        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+  {isPredictionEnded && !isFinalized && !isAdmin && (
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
-            {isFinalized ? 'This prediction has been finalized.' : 'This prediction has been cancelled.'}
+            <span className="bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100 px-2 py-1 rounded-full">
+              This prediction has ended and is awaiting finalization
+            </span>
           </div>
         </div>
       )}
-    </div>
+      {(isFinalized || isCancelled) && !isAdmin && (
+        <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
+            {isFinalized ? (
+              <span className="bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100 px-2 py-1 rounded-full">
+                This prediction has been finalized
+              </span>
+            ) : (
+              <span className="bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 px-2 py-1 rounded-full">
+                This prediction has been cancelled
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 };
 
