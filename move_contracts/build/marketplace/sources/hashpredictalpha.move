@@ -98,29 +98,68 @@ module prediction_marketplace::hashpredictalpha {
         users: vector<address>,
     }
 
-      public entry fun initialize(admin: &signer) {
-        let admin_addr = signer::address_of(admin);
-        assert!(!exists<MarketState>(admin_addr), E_ALREADY_INITIALIZED);
+fun init_module(admin: &signer) {
+    let admin_addr = signer::address_of(admin);
+    assert!(!exists<MarketState>(admin_addr), E_ALREADY_INITIALIZED);
 
-        move_to(admin, MarketState {
-            predictions: simple_map::create(),
-            user_predictions: table::new(),
-            admin: admin_addr,
-            next_prediction_id: 0,
-            prediction_created_events: account::new_event_handle<PredictionCreatedEvent>(admin),
-            prediction_made_events: account::new_event_handle<PredictionMadeEvent>(admin),
-            prediction_resolved_events: account::new_event_handle<PredictionResolvedEvent>(admin),
-        });
+    move_to(admin, MarketState {
+        predictions: simple_map::create(),
+        user_predictions: table::new(),
+        admin: admin_addr,
+        next_prediction_id: 0,
+        prediction_created_events: account::new_event_handle<PredictionCreatedEvent>(admin),
+        prediction_made_events: account::new_event_handle<PredictionMadeEvent>(admin),
+        prediction_resolved_events: account::new_event_handle<PredictionResolvedEvent>(admin),
+    });
 
-        user_account::initialize(admin);
-    }
+    move_to(admin, UserTracker {
+        users: vector::empty<address>(),
+    });
 
+    user_account::initialize(admin);
+}
     fun add_user_to_tracker(user: address) acquires UserTracker {
         let tracker = borrow_global_mut<UserTracker>(@prediction_marketplace);
         if (!vector::contains(&tracker.users, &user)) {
             vector::push_back(&mut tracker.users, user);
         }
     }
+public entry fun create_prediction(
+    account: &signer,
+    description: String,
+    duration: u64
+) acquires MarketState {
+    let account_addr = signer::address_of(account);
+    let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
+    
+    assert!(account_addr == market_state.admin, E_NOT_AUTHORIZED);
+
+    let prediction_id = market_state.next_prediction_id;
+    market_state.next_prediction_id = prediction_id + 1;
+
+    let prediction_details = PredictionDetails {
+        id: prediction_id,
+        state: State { value: STATE_ACTIVE },
+        description,
+        start_time: timestamp::now_seconds(),
+        end_time: timestamp::now_seconds() + duration,
+        total_votes: 0,
+        yes_votes: 0,
+        no_votes: 0,
+        yes_price: 0,
+        no_price: 0,
+        result: RESULT_UNDEFINED,
+        total_bet: 0,
+    };
+
+    simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
+
+    event::emit_event(&mut market_state.prediction_created_events, PredictionCreatedEvent {
+        prediction_id,
+        creator: account_addr,
+        description,
+    });
+}
 
     public entry fun predict(
         account: &signer,
