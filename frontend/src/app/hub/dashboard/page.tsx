@@ -216,7 +216,7 @@ const Dashboard = () => {
   const handleGeneratePredictions = async () => {
     setIsGenerating(true);
     try {
-      const response = await axios.post('https://ai-predict-fcdw.onrender.com/test/generate-predictions', { topic });
+      const response = await axios.post(process.env.NEXT_PUBLIC_SERVER_URL + '/test/generate-predictions', { topic });
       setGeneratedPredictions(response.data.predictions);
       setIsGeneratePopupOpen(true);
     } catch (error) {

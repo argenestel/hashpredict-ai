@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown } from 'react-icons/io5';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown, IoSwapHorizontal } from 'react-icons/io5';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 interface PredictionCardProps {
   prediction: {
@@ -64,6 +65,40 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     }
   };
 
+
+  const [showUSD, setShowUSD] = useState(true);
+  const [aptPrice, setAptPrice] = useState(0);
+
+  useEffect(() => {
+    fetchAptPrice();
+  }, []);
+
+  const fetchAptPrice = async () => {
+    try {
+      const response = await axios.get('https://hermes.pyth.network/api/latest_price_feeds', {
+        params: {
+          ids: ['0x03ae4db29ed4ae33d323568895aa00337e658e348b37509f5372ae51f0af00d5']
+        }
+      });
+      const priceData = response.data[0].price;
+      const price = Number(priceData.price) * Math.pow(10, priceData.expo);
+      setAptPrice(price);
+    } catch (error) {
+      console.error('Error fetching APT price:', error);
+      toast.error('Failed to fetch APT price');
+    }
+  };
+
+  const formatPrice = (amount: string) => {
+    const aptAmount = Number(amount) / 1e8;
+    if (showUSD) {
+      const usdAmount = aptAmount * aptPrice;
+      return `$${usdAmount.toFixed(2)}`;
+    } else {
+      return `${aptAmount.toFixed(2)} APT`;
+    }
+  };
+  
   const handleFinalize = async (useAI = false) => {
     if (!account) return;
     try {
@@ -71,7 +106,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       if (useAI) {
         setIsAIFinalizing(true);
         try {
-          const response = await axios.post(`https://ai-predict-fcdw.onrender.com/finalize-prediction/${prediction.id}`);
+          const response = await axios.post(process.env.NEXT_PUBLIC_SERVER_URL+`/finalize-prediction/${prediction.id}`);
           finalOutcome = response.data.outcome;
         } catch (error) {
           console.error('Error finalizing with AI:', error);
@@ -181,27 +216,33 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
 
   return (
     <motion.div 
-      className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <div className="p-6 flex-grow">
-        <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
-          {description}
-        </h2>
-        <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
-          <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
-            <IoTimeOutline className="mr-2 text-brand-500" />
-            <span>Ends: {formatTime(end_time)}</span>
-          </div>
-          <div className="flex items-center bg-brand-100 dark:bg-brand-900 rounded-full px-3 py-1">
-            <IoWalletOutline className="mr-2 text-brand-500" />
-            <span className="font-semibold text-brand-700 dark:text-brand-300">
-              Pool: {totalApt} APT
-            </span>
-          </div>
+    className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3 }}
+  >
+    <div className="p-6 flex-grow">
+      <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
+        {description}
+      </h2>
+      <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
+        <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
+          <IoTimeOutline className="mr-2 text-brand-500" />
+          <span>Ends: {formatTime(end_time)}</span>
         </div>
+        <div className="flex items-center bg-brand-100 dark:bg-brand-900 rounded-full px-3 py-1">
+          <IoWalletOutline className="mr-2 text-brand-500" />
+          <span className="font-semibold text-brand-700 dark:text-brand-300">
+            Pool: {formatPrice(total_bet)}
+          </span>
+          <button 
+            onClick={() => setShowUSD(!showUSD)} 
+            className="ml-2 text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            <IoSwapHorizontal />
+          </button>
+        </div>
+      </div>
         
         <div className="mb-6">
           <div className="flex justify-between mb-2">
@@ -243,11 +284,11 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
         <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
           <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-3">
             <p className="font-semibold mb-1">Yes Votes: {Number(yes_votes).toLocaleString()}</p>
-            <p>Yes Price: {formatAPT(yes_price)} APT</p>
+            <p>Yes Price: {formatPrice(yes_price)}</p>
           </div>
           <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-3">
             <p className="font-semibold mb-1">No Votes: {Number(no_votes).toLocaleString()}</p>
-            <p>No Price: {formatAPT(no_price)} APT</p>
+            <p>No Price: {formatPrice(no_price)}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -338,7 +379,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               <IoAdd size={16} />
             </motion.button>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              ({(shareAmount * 0.01).toFixed(2)} APT)
+              ({formatPrice((shareAmount * 0.01 * 1e8).toString())})
             </span>
           </div>
           <motion.button 
