@@ -20,11 +20,12 @@ interface PredictionCardProps {
     total_bet: string;
     total_votes: string;
     result: number;
+    tags: string[];
   };
   onPredict: (id: string, verdict: boolean, share: number) => void;
 }
 
-const MODULE_ADDRESS = '0x5e4a0b20b0d20f701526a21288ae092f7876bb43698aa794c61110099b48bc5b';
+const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
 const config = new AptosConfig({ network: Network.DEVNET });
 const aptos = new Aptos(config);
 
@@ -201,7 +202,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     return (Number(amount) / 1e8).toFixed(2);
   };
 
-  const { id, description, end_time, state, yes_votes, no_votes, yes_price, no_price, total_bet, total_votes, result } = prediction;
+  const { id, description, end_time, state, yes_votes, no_votes, yes_price, no_price, total_bet, total_votes, result, tags } = prediction;
 
   const yesPercentage = calculatePercentage(yes_votes, total_votes);
   const noPercentage = calculatePercentage(no_votes, total_votes);
@@ -243,6 +244,14 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </button>
         </div>
       </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+          {tags.map((tag, index) => (
+            <span key={index} className="bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full text-xs">
+              {tag}
+            </span>
+          ))}
+        </div>
         
         <div className="mb-6">
           <div className="flex justify-between mb-2">

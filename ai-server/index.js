@@ -29,7 +29,7 @@ const aptosClient = new AptosClient(NODE_URL, {
     WITH_CREDENTIALS: false
 });
 
-const MODULE_ADDRESS = '0x5e4a0b20b0d20f701526a21288ae092f7876bb43698aa794c61110099b48bc5b';
+const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
 const MODULE_NAME = 'hashpredictalpha';
 
 // Create an Aptos account from private key
@@ -244,6 +244,78 @@ app.post("/finalize-prediction/:id", async (req, res) => {
         res.status(500).json({ error: error.message, stack: error.stack });
     }
 });
+
+
+async function generatePredictions(topic) {
+    try {
+        const perplexityData = await getPerplexityData(topic);
+        
+        const gpt4Prompt = `
+Based on the following current information about ${topic}:
+
+${perplexityData}
+
+Generate 3 prediction market questions. Each prediction should be:
+1. Specific and unambiguous
+2. Measurable with a clear outcome
+3. Have a definite timeframe for resolution (within the next 6 months)
+4. Relevant to the given topic and current events
+5. Interesting and engaging for participants
+
+Output should be a valid JSON array of prediction objects with the following fields:
+- description: The prediction question
+- duration: Time until the prediction resolves, in seconds (max 6 months)
+- tags: An array of relevant tags (3-5 tags)
+
+Ensure the predictions are diverse and cover different aspects of the topic.
+`;
+
+        const response = await openai.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert in creating engaging and relevant prediction market questions based on current events and data."
+                },
+                { role: "user", content: gpt4Prompt }
+            ],
+            temperature: 0.7,
+        });
+
+        let predictions = JSON.parse(response.choices[0].message.content);
+        return predictions.map(prediction => ({
+            ...prediction,
+            minVotes: 1,
+            maxVotes: 1000,
+            predictionType: 0,
+            optionsCount: 2
+        }));
+    } catch (error) {
+        console.error("Error generating predictions:", error);
+        throw new Error("Failed to generate predictions: " + error.message);
+    }
+}
+
+app.post("/test/generate-predictions", async (req, res) => {
+    try {
+        console.log("Received request to generate test predictions");
+        const { topic } = req.body;
+        if (!topic) {
+            return res.status(400).json({ error: "Topic is required" });
+        }
+
+        console.log("Generating test predictions for topic:", topic);
+        const predictions = await generatePredictions(topic);
+        console.log("Generated test predictions:", predictions);
+
+        res.json({ predictions: predictions });
+    } catch (error) {
+        console.error("Error in test generate-predictions endpoint:", error);
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
+
+
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });

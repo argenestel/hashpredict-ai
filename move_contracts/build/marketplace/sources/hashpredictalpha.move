@@ -62,6 +62,9 @@ module prediction_marketplace::hashpredictalpha {
         no_price: u64,
         result: u8,
         total_bet: u64,
+        prediction_type: u8,
+        options_count: u8,
+        tags: vector<String>,
     }
 
     struct MarketState has key {
@@ -124,42 +127,48 @@ fun init_module(admin: &signer) {
             vector::push_back(&mut tracker.users, user);
         }
     }
-public entry fun create_prediction(
-    account: &signer,
-    description: String,
-    duration: u64
-) acquires MarketState {
-    let account_addr = signer::address_of(account);
-    let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
-    
-    assert!(account_addr == market_state.admin, E_NOT_AUTHORIZED);
+  public entry fun create_prediction(
+        account: &signer,
+        description: String,
+        duration: u64,
+        tags: vector<String>,
+        prediction_type: u8,
+        options_count: u8
+    ) acquires MarketState {
+        let account_addr = signer::address_of(account);
+        let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
+        
+        assert!(account_addr == market_state.admin, E_NOT_AUTHORIZED);
 
-    let prediction_id = market_state.next_prediction_id;
-    market_state.next_prediction_id = prediction_id + 1;
+        let prediction_id = market_state.next_prediction_id;
+        market_state.next_prediction_id = prediction_id + 1;
 
-    let prediction_details = PredictionDetails {
-        id: prediction_id,
-        state: State { value: STATE_ACTIVE },
-        description,
-        start_time: timestamp::now_seconds(),
-        end_time: timestamp::now_seconds() + duration,
-        total_votes: 0,
-        yes_votes: 0,
-        no_votes: 0,
-        yes_price: 0,
-        no_price: 0,
-        result: RESULT_UNDEFINED,
-        total_bet: 0,
-    };
+        let prediction_details = PredictionDetails {
+            id: prediction_id,
+            state: State { value: STATE_ACTIVE },
+            description,
+            start_time: timestamp::now_seconds(),
+            end_time: timestamp::now_seconds() + duration,
+            total_votes: 0,
+            yes_votes: 0,
+            no_votes: 0,
+            yes_price: 0,
+            no_price: 0,
+            result: RESULT_UNDEFINED,
+            total_bet: 0,
+            prediction_type,
+            options_count,
+            tags,
+        };
 
-    simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
+        simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
 
-    event::emit_event(&mut market_state.prediction_created_events, PredictionCreatedEvent {
-        prediction_id,
-        creator: account_addr,
-        description,
-    });
-}
+        event::emit_event(&mut market_state.prediction_created_events, PredictionCreatedEvent {
+            prediction_id,
+            creator: account_addr,
+            description,
+        });
+    }
 
     public entry fun predict(
         account: &signer,

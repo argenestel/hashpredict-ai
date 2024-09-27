@@ -6,11 +6,7 @@ import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
-import {
-  AptosFaucetClient,
-  FundRequest,
-} from "@aptos-labs/aptos-faucet-client";
-const MODULE_ADDRESS = '0x5e4a0b20b0d20f701526a21288ae092f7876bb43698aa794c61110099b48bc5b';
+const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
 const config = new AptosConfig({ network: Network.DEVNET });
 const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
@@ -29,6 +25,9 @@ interface PredictionData {
   total_bet: string;
   total_votes: string;
   result: number;
+  tags: string[]; // New field for tags
+  prediction_type: number;
+  options_count: number;
 }
 
 const Dashboard = () => {
@@ -45,6 +44,9 @@ const Dashboard = () => {
   const [newPrediction, setNewPrediction] = useState({
     description: '',
     duration: '',
+    tags: '',
+    prediction_type: 0,
+    options_count: 2,
   });
 
   useEffect(() => {
@@ -128,6 +130,9 @@ const Dashboard = () => {
             total_bet: prediction.total_bet?.toString() ?? '0',
             total_votes: prediction.total_votes?.toString() ?? '0',
             result: Number(prediction.result ?? 0),
+            tags: prediction.tags?.map((tag: any) => tag.toString()) ?? [], // Process tags
+            prediction_type: Number(prediction.prediction_type ?? 0),
+            options_count: Number(prediction.options_count ?? 2),
           };
         } catch (error) {
           console.error(`Error processing prediction ${index}:`, error);
@@ -154,7 +159,7 @@ const Dashboard = () => {
     }
 
     try {
-      const response = await axios.post('https://faucet.devnet.aptoslabs.com/mint', null, {
+      const response = await axios.post(process.env.NEXT_PUBLIC_FAUCET_URL + '/mint', null, {
         params: {
           amount: 10000000,
           address: account.address,
@@ -195,18 +200,25 @@ const Dashboard = () => {
     }
 
     try {
+      const tags = newPrediction.tags.split(',').map(tag => tag.trim());
+
       await signAndSubmitTransaction({
         data: {
           function: `${MODULE_ADDRESS}::hashpredictalpha::create_prediction`,
           typeArguments: [],
-          functionArguments: [newPrediction.description, parseInt(newPrediction.duration)]
+          functionArguments: [newPrediction.description, parseInt(newPrediction.duration), tags, newPrediction.prediction_type,
+            newPrediction.options_count]
         },
       });
       setIsModalOpen(false);
-      fetchPredictions(); // Refresh predictions after creating a new one
+      fetchPredictions();
       setNewPrediction({
         description: '',
-        duration: ''
+        duration: '',
+        tags: '',
+        prediction_type: 0,
+        options_count: 2,
+        
       });
     } catch (error) {
       console.error('Error creating prediction:', error);
@@ -229,6 +241,9 @@ const Dashboard = () => {
     setNewPrediction({
       description: prediction.description,
       duration: prediction.duration.toString(),
+      tags: prediction.tags,
+      prediction_type: prediction.prediction_type,
+      options_count: prediction.options_count,
     });
     setIsGeneratePopupOpen(false);
     setIsModalOpen(true);
@@ -332,7 +347,7 @@ const Dashboard = () => {
                 </button>
               </div>
               <div className="space-y-4">
-                <input
+              <input
                   type="text"
                   value={newPrediction.description}
                   onChange={(e) => setNewPrediction({...newPrediction, description: e.target.value})}
@@ -346,6 +361,30 @@ const Dashboard = () => {
                   placeholder="Duration (seconds)"
                   className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
                 />
+                <input
+                  type="text"
+                  value={newPrediction.tags}
+                  onChange={(e) => setNewPrediction({...newPrediction, tags: e.target.value})}
+                  placeholder="Tags (comma-separated)"
+                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+                />
+                <select
+                  value={newPrediction.prediction_type}
+                  onChange={(e) => setNewPrediction({...newPrediction, prediction_type: parseInt(e.target.value)})}
+                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+                >
+                  <option value={0}>Yes/No</option>
+                  {/* <option value={1}>Multiple Choice</option> */}
+                  {/* Add more options as needed */}
+                </select>
+                <input
+                  type="number"
+                  value={newPrediction.options_count}
+                  onChange={(e) => setNewPrediction({...newPrediction, options_count: parseInt(e.target.value)})}
+                  placeholder="Number of options"
+                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+                />
+             
                 <button
                   onClick={handleCreatePrediction}
                   className="w-full bg-brand-500 text-white rounded-lg py-2 px-4 hover:bg-brand-600 transition-colors"
@@ -392,16 +431,17 @@ const Dashboard = () => {
                   {isGenerating ? 'Generating...' : 'Generate Predictions'}
                 </button>
                 {generatedPredictions.map((prediction, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ scale: 1.02 }}
-                    className="bg-gray-100 dark:bg-navy-700 p-4 rounded-lg cursor-pointer"
-                    onClick={() => handleSelectPrediction(prediction)}
-                  >
-                    <h3 className="font-bold text-navy-700 dark:text-white mb-2">{prediction.description}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Duration: {prediction.duration} seconds</p>
-                  </motion.div>
-                ))}
+                <motion.div
+                  key={index}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gray-100 dark:bg-navy-700 p-4 rounded-lg cursor-pointer"
+                  onClick={() => handleSelectPrediction(prediction)}
+                >
+                  <h3 className="font-bold text-navy-700 dark:text-white mb-2">{prediction.description}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Duration: {prediction.duration} seconds</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Tags: {prediction.tags.join(', ')}</p>
+                </motion.div>
+              ))}
               </div>
             </motion.div>
           </motion.div>
