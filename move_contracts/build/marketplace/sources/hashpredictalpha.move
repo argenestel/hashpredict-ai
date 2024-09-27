@@ -39,8 +39,8 @@ module prediction_marketplace::hashpredictalpha {
     const RESULT_FALSE: u8 = 1;
     const RESULT_UNDEFINED: u8 = 2;
 
-  const SHARE_AMOUNT: u64 = 1000000;
-    const CHIP_EXCHANGE_RATE: u64 = 100; // 100 CHIP = 1 APT
+const SHARE_AMOUNT: u64 = 1000000; // 0.01 APT
+const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for 8 decimal places
 
 
       struct UserPrediction has store, drop, copy {
@@ -65,6 +65,7 @@ module prediction_marketplace::hashpredictalpha {
         prediction_type: u8,
         options_count: u8,
         tags: vector<String>,
+        
     }
 
     struct MarketState has key {
@@ -197,27 +198,26 @@ fun init_module(admin: &signer) {
         };
         let user_prediction_vector = simple_map::borrow_mut(user_predictions, &prediction_id);
         
-        let required_amount = if (use_chip) {
-            share * CHIP_EXCHANGE_RATE
-        } else {
-            share * SHARE_AMOUNT
-        };
+         let required_amount = if (use_chip) {
+        share * CHIP_EXCHANGE_RATE
+    } else {
+        share * SHARE_AMOUNT
+    };
 
-         let apt_equivalent = if (use_chip) {
+    let apt_equivalent = if (use_chip) {
         share * SHARE_AMOUNT // Convert CHIP to APT equivalent
     } else {
         required_amount
     };
 
-
-        if (use_chip) {
-            assert!(chip_token::balance(account_addr) >= required_amount, E_INSUFFICIENT_FUNDS);
-            chip_token::burn(account, account_addr, required_amount);
-        } else {
-            assert!(coin::balance<AptosCoin>(account_addr) >= required_amount, E_INSUFFICIENT_FUNDS);
-            coin::transfer<AptosCoin>(account, @prediction_marketplace, required_amount);
-        };
-
+   if (use_chip) {
+        assert!(chip_token::balance(account_addr) >= required_amount, E_INSUFFICIENT_FUNDS);
+        // Instead of burning, transfer CHIP tokens to the prediction marketplace
+        chip_token::transfer_chips(account, @prediction_marketplace, required_amount);
+    } else {
+        assert!(coin::balance<AptosCoin>(account_addr) >= required_amount, E_INSUFFICIENT_FUNDS);
+        coin::transfer<AptosCoin>(account, @prediction_marketplace, required_amount);
+    };
         // Update prediction details
         prediction.total_votes = prediction.total_votes + 1;
         if (verdict) {
@@ -235,8 +235,11 @@ fun init_module(admin: &signer) {
         prediction.total_bet = prediction.total_bet + apt_equivalent;
 
         // Record prediction in user account
-        user_account::record_prediction(account_addr, prediction_id, apt_equivalent, use_chip, verdict);
+        // user_account::record_prediction(account_addr, prediction_id, apt_equivalent, use_chip, verdict);
+    user_account::update_balances(account);
 
+    // Record prediction in user account
+    user_account::record_prediction(account_addr, prediction_id, apt_equivalent, use_chip, verdict);
         event::emit_event(&mut market_state.prediction_made_events, PredictionMadeEvent {
             prediction_id,
             user: account_addr,

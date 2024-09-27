@@ -172,7 +172,7 @@ const Dashboard = () => {
       console.error('Error requesting funds:', error);
     }
   };
-  const handlePredict = async (id: string, verdict: boolean, share: number) => {
+  const handlePredict = async (id: string, verdict: boolean, share: number, useChip: boolean) => {
     if (!connected || !account) {
       console.error('Wallet not connected');
       return;
@@ -183,7 +183,7 @@ const Dashboard = () => {
         data: {
           function: `${MODULE_ADDRESS}::hashpredictalpha::predict`,
           typeArguments: [],
-          functionArguments: [id, verdict, share, false] // false for not using CHIP tokens
+          functionArguments: [id, verdict, share, useChip] // false for not using CHIP tokens
         },
       });
       // Refresh predictions after prediction is made
@@ -200,14 +200,29 @@ const Dashboard = () => {
     }
 
     try {
-      const tags = newPrediction.tags.split(',').map(tag => tag.trim());
+      let tags;
+      if (typeof newPrediction.tags === 'string') {
+        // If tags is a string (from manual input), split it
+        tags = newPrediction.tags.split(',').map(tag => tag.trim());
+      } else if (Array.isArray(newPrediction.tags)) {
+        // If tags is already an array (from generated predictions), use it as is
+        tags = newPrediction.tags;
+      } else {
+        // If tags is neither a string nor an array, use an empty array
+        tags = [];
+      }
 
       await signAndSubmitTransaction({
         data: {
           function: `${MODULE_ADDRESS}::hashpredictalpha::create_prediction`,
           typeArguments: [],
-          functionArguments: [newPrediction.description, parseInt(newPrediction.duration), tags, newPrediction.prediction_type,
-            newPrediction.options_count]
+          functionArguments: [
+            newPrediction.description,
+            parseInt(newPrediction.duration),
+            tags,
+            newPrediction.prediction_type,
+            newPrediction.options_count
+          ]
         },
       });
       setIsModalOpen(false);
@@ -218,11 +233,23 @@ const Dashboard = () => {
         tags: '',
         prediction_type: 0,
         options_count: 2,
-        
       });
     } catch (error) {
       console.error('Error creating prediction:', error);
+      toast.error('Failed to create prediction. Please try again.');
     }
+  };
+
+  const handleSelectPrediction = (prediction: any) => {
+    setNewPrediction({
+      description: prediction.description,
+      duration: prediction.duration.toString(),
+      tags: prediction.tags, // Keep tags as an array
+      prediction_type: 0, // Assuming all generated predictions are Yes/No type
+      options_count: 2, // Assuming all generated predictions have 2 options (Yes/No)
+    });
+    setIsGeneratePopupOpen(false);
+    setIsModalOpen(true);
   };
 
   const handleGeneratePredictions = async () => {
@@ -237,33 +264,23 @@ const Dashboard = () => {
     setIsGenerating(false);
   };
 
-  const handleSelectPrediction = (prediction: any) => {
-    setNewPrediction({
-      description: prediction.description,
-      duration: prediction.duration.toString(),
-      tags: prediction.tags,
-      prediction_type: prediction.prediction_type,
-      options_count: prediction.options_count,
-    });
-    setIsGeneratePopupOpen(false);
-    setIsModalOpen(true);
-  };
+
 
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
-      <Toaster />
+    <Toaster />
     <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-navy-700 dark:text-white">Prediction Dashboard</h1>
-        <div className="flex space-x-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-navy-700 dark:text-white mb-4 sm:mb-0">Prediction Dashboard</h1>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleRequestFunds}
-            className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+            className="bg-blue-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
           >
-            <IoWater className="mr-2" /> Request Funds
+            <IoWater className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Request</span> Funds
           </motion.button>
           {isAdminRole && (
             <>
@@ -271,26 +288,26 @@ const Dashboard = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsModalOpen(true)}
-                className="bg-green-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+                className="bg-green-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
               >
-                <IoAdd className="mr-2" /> Create
+                <IoAdd className="mr-1 sm:mr-2" /> Create
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsGeneratePopupOpen(true)}
-                className="bg-purple-500 text-white rounded-lg py-2 px-4 text-sm flex items-center justify-center"
+                className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
               >
-                <IoBulb className="mr-2" /> Generate
+                <IoBulb className="mr-1 sm:mr-2" /> Generate
               </motion.button>
             </>
           )}
         </div>
       </div>
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, index) => (
-            <div key={index} className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6 animate-pulse">
+            <div key={index} className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-4 sm:p-6 animate-pulse">
               <div className="h-6 bg-gray-200 dark:bg-navy-700 rounded w-3/4 mb-4"></div>
               <div className="h-4 bg-gray-200 dark:bg-navy-700 rounded w-1/2 mb-2"></div>
               <div className="h-4 bg-gray-200 dark:bg-navy-700 rounded w-1/3 mb-4"></div>
@@ -300,7 +317,7 @@ const Dashboard = () => {
           ))}
         </div>
       ) : predictions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {predictions.map((prediction) => (
             <PredictionCard
               key={prediction.id}
@@ -311,14 +328,14 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-4">No predictions available</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-navy-700 dark:text-white mb-4">No predictions available</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-8">Create a new prediction to get started!</p>
           {isAdminRole && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsModalOpen(true)}
-              className="bg-green-500 text-white rounded-lg py-3 px-6 text-lg font-semibold flex items-center justify-center mx-auto"
+              className="bg-green-500 text-white rounded-lg py-2 px-4 text-base sm:text-lg font-semibold flex items-center justify-center mx-auto"
             >
               <IoAdd className="mr-2" /> Create Prediction
             </motion.button>
@@ -326,111 +343,75 @@ const Dashboard = () => {
         </div>
       )}
     </div>
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-navy-800 rounded-lg p-6 w-full max-w-lg"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-navy-700 dark:text-white">Create New Prediction</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                  <IoClose size={24} />
-                </button>
-              </div>
-              <div className="space-y-4">
-              <input
-                  type="text"
-                  value={newPrediction.description}
-                  onChange={(e) => setNewPrediction({...newPrediction, description: e.target.value})}
-                  placeholder="Description"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <input
-                  type="number"
-                  value={newPrediction.duration}
-                  onChange={(e) => setNewPrediction({...newPrediction, duration: e.target.value})}
-                  placeholder="Duration (seconds)"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <input
-                  type="text"
-                  value={newPrediction.tags}
-                  onChange={(e) => setNewPrediction({...newPrediction, tags: e.target.value})}
-                  placeholder="Tags (comma-separated)"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <select
-                  value={newPrediction.prediction_type}
-                  onChange={(e) => setNewPrediction({...newPrediction, prediction_type: parseInt(e.target.value)})}
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                >
-                  <option value={0}>Yes/No</option>
-                  {/* <option value={1}>Multiple Choice</option> */}
-                  {/* Add more options as needed */}
-                </select>
-                <input
-                  type="number"
-                  value={newPrediction.options_count}
-                  onChange={(e) => setNewPrediction({...newPrediction, options_count: parseInt(e.target.value)})}
-                  placeholder="Number of options"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-             
-                <button
-                  onClick={handleCreatePrediction}
-                  className="w-full bg-brand-500 text-white rounded-lg py-2 px-4 hover:bg-brand-600 transition-colors"
-                >
-                  Create Prediction
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
 
-        {isGeneratePopupOpen && (
+    <AnimatePresence>
+      {isModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white dark:bg-navy-800 rounded-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-navy-800 rounded-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-navy-700 dark:text-white">Generate AI Predictions</h2>
-                <button onClick={() => setIsGeneratePopupOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                  <IoClose size={24} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Enter a topic for predictions"
-                  className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <button
-                  onClick={handleGeneratePredictions}
-                  disabled={isGenerating}
-                  className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 hover:bg-purple-600 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? 'Generating...' : 'Generate Predictions'}
-                </button>
-                {generatedPredictions.map((prediction, index) => (
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-navy-700 dark:text-white">Create New Prediction</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <IoClose size={24} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {/* ... (keep existing form inputs) */}
+              <button
+                onClick={handleCreatePrediction}
+                className="w-full bg-brand-500 text-white rounded-lg py-2 px-4 hover:bg-brand-600 transition-colors"
+              >
+                Create Prediction
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {isGeneratePopupOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white dark:bg-navy-800 rounded-lg p-4 sm:p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-navy-700 dark:text-white">Generate AI Predictions</h2>
+              <button onClick={() => setIsGeneratePopupOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <IoClose size={24} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="Enter a topic for predictions"
+                className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+              />
+              <button
+                onClick={handleGeneratePredictions}
+                disabled={isGenerating}
+                className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 hover:bg-purple-600 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? 'Generating...' : 'Generate Predictions'}
+              </button>
+              {generatedPredictions.map((prediction, index) => (
                 <motion.div
                   key={index}
                   whileHover={{ scale: 1.02 }}
@@ -442,12 +423,12 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Tags: {prediction.tags.join(', ')}</p>
                 </motion.div>
               ))}
-              </div>
-            </motion.div>
+            </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
   );
 };
 

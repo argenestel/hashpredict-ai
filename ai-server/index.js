@@ -246,6 +246,114 @@ app.post("/finalize-prediction/:id", async (req, res) => {
 });
 
 
+async function claimDailyReward(userAddress) {
+    const payload = {
+        function: `${MODULE_ADDRESS}::reward_system::claim_daily_reward`,
+        type_arguments: [],
+        arguments: [userAddress]
+    };
+
+    try {
+        const txnRequest = await aptosClient.generateTransaction(account.address(), payload);
+        const signedTxn = await aptosClient.signTransaction(account, txnRequest);
+        const txnResult = await aptosClient.submitTransaction(signedTxn);
+        await aptosClient.waitForTransaction(txnResult.hash);
+        return txnResult;
+    } catch (error) {
+        console.error("Error in claimDailyReward:", error);
+        throw error;
+    }
+}
+
+async function useReferralCode(userAddress, referralCode) {
+    const payload = {
+        function: `${MODULE_ADDRESS}::reward_system::use_referral_code`,
+        type_arguments: [],
+        arguments: [userAddress, referralCode]
+    };
+
+    try {
+        const txnRequest = await aptosClient.generateTransaction(account.address(), payload);
+        const signedTxn = await aptosClient.signTransaction(account, txnRequest);
+        const txnResult = await aptosClient.submitTransaction(signedTxn);
+        await aptosClient.waitForTransaction(txnResult.hash);
+        return txnResult;
+    } catch (error) {
+        console.error("Error in useReferralCode:", error);
+        throw error;
+    }
+}
+
+async function getReferrals(userAddress) {
+    try {
+        const result = await aptosClient.view({
+            function: `${MODULE_ADDRESS}::reward_system::get_referrals`,
+            type_arguments: [],
+            arguments: [userAddress]
+        });
+        return result[0];
+    } catch (error) {
+        console.error("Error in getReferrals:", error);
+        throw error;
+    }
+}
+
+async function getDailyClaimInfo(userAddress) {
+    try {
+        const result = await aptosClient.view({
+            function: `${MODULE_ADDRESS}::reward_system::get_daily_claim_info`,
+            type_arguments: [],
+            arguments: [userAddress]
+        });
+        return { lastClaimTime: result[0], currentStreak: result[1] };
+    } catch (error) {
+        console.error("Error in getDailyClaimInfo:", error);
+        throw error;
+    }
+}
+
+// New endpoints
+app.post("/claim-daily-reward", async (req, res) => {
+    try {
+        const { userAddress } = req.body;
+        const result = await claimDailyReward(userAddress);
+        res.json({ success: true, transactionHash: result.hash });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post("/use-referral-code", async (req, res) => {
+    try {
+        const { userAddress, referralCode } = req.body;
+        const result = await useReferralCode(userAddress, referralCode);
+        res.json({ success: true, transactionHash: result.hash });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get("/get-referrals/:userAddress", async (req, res) => {
+    try {
+        const { userAddress } = req.params;
+        const referrals = await getReferrals(userAddress);
+        res.json({ referrals });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get("/get-daily-claim-info/:userAddress", async (req, res) => {
+    try {
+        const { userAddress } = req.params;
+        const claimInfo = await getDailyClaimInfo(userAddress);
+        res.json(claimInfo);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 async function generatePredictions(topic) {
     try {
         const perplexityData = await getPerplexityData(topic);

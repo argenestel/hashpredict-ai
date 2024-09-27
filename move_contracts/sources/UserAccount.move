@@ -277,7 +277,7 @@ public entry fun register_user(account: &signer, alias: String) acquires UserAcc
         };
         user_account.rank = (user_account.reputation * accuracy) / 100;
     }
-
+    #[view]
     public fun get_user_info(user_addr: address): (String, u64, u64, u64, u64, u64, u64) acquires UserAccount {
         assert!(exists<UserAccount>(user_addr), E_NOT_INITIALIZED);
         let user_account = borrow_global<UserAccount>(user_addr);
@@ -292,6 +292,7 @@ public entry fun register_user(account: &signer, alias: String) acquires UserAcc
         )
     }
 
+    #[view]
     public fun get_user_predictions(user_addr: address): vector<PredictionEntry> acquires UserAccount {
         assert!(exists<UserAccount>(user_addr), E_NOT_INITIALIZED);
         let user_account = borrow_global<UserAccount>(user_addr);

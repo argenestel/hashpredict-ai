@@ -8,23 +8,31 @@ import { RiMoonFill, RiSunFill } from 'react-icons/ri';
 const NavBar = ({ isMobile }) => {
   const [activeTab, setActiveTab] = useState('predict');
   const [showTutorial, setShowTutorial] = useState(false);
-  const [darkmode, setDarkmode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
+    const storedMode = localStorage.getItem('isDarkMode');
+    const initialDarkMode = storedMode === null ? true : storedMode === 'true';
+    setIsDarkMode(initialDarkMode);
+    updateDarkMode(initialDarkMode);
+  }, []);
 
-    document.documentElement.classList.add('dark');
-    setDarkmode(true);
-  }, [darkmode]);
+  const updateDarkMode = (isDark) => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const toggleDarkMode = () => {
-    if (darkmode) {
-      document.body.classList.remove('dark');
-    } else {
-      document.body.classList.add('dark');
-    }
-    setDarkmode(!darkmode);
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    updateDarkMode(newMode);
+    localStorage.setItem('isDarkMode', newMode.toString());
   };
+
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
     if (!hasSeenTutorial) {
@@ -68,16 +76,6 @@ const NavBar = ({ isMobile }) => {
           isMobile={isMobile}
         />
       ))}
-          <div
-          className="cursor-pointer text-gray-600"
-          onClick={toggleDarkMode}
-        >
-          {darkmode ? (
-            <RiSunFill className="h-5 w-5 text-gray-600 dark:text-white" />
-          ) : (
-            <RiMoonFill className="h-5 w-5 text-gray-600 dark:text-white" />
-          )}
-        </div>
     </div>
   );
 
@@ -90,9 +88,20 @@ const NavBar = ({ isMobile }) => {
         className="fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-xl p-4 shadow-lg dark:bg-[#0b14374d] z-50"
       >
         <div className="flex justify-between items-center">
-          <span className="text-white font-bold text-xl">#Predict.AI</span>
+          <span className="text-gray-800 dark:text-white font-bold text-xl">#Predict.AI</span>
           <div className="flex items-center space-x-4">
             {!isMobile && <NavContent />}
+            <button
+              className="cursor-pointer text-gray-800 dark:text-white"
+              onClick={toggleDarkMode}
+              aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {isDarkMode ? (
+                <RiSunFill className="h-5 w-5" />
+              ) : (
+                <RiMoonFill className="h-5 w-5" />
+              )}
+            </button>
             <WalletSelector />
           </div>
         </div>
@@ -123,9 +132,9 @@ const NavBar = ({ isMobile }) => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 max-w-sm w-full shadow-lg dark:bg-[#0b14374d]"
             >
-              <h2 className="text-xl font-bold mb-4 text-white">Welcome to #Predict.AI!</h2>
-              <p className="text-gray-300 mb-4">Let's quickly go through the main features of our prediction marketplace:</p>
-              <ul className="list-disc pl-6 space-y-2 text-gray-300 mb-6">
+              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Welcome to #Predict.AI!</h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">Let's quickly go through the main features of our prediction marketplace:</p>
+              <ul className="list-disc pl-6 space-y-2 text-gray-600 dark:text-gray-300 mb-6">
                 <li>Leaders: See top performers</li>
                 <li>Predict: Make your predictions</li>
                 <li>Profile: View your activity and settings</li>
@@ -151,7 +160,7 @@ const NavItem = ({ icon, label, isActive, onClick, isMobile }) => (
     className={`
       flex items-center justify-center 
       py-2 px-4 rounded-xl transition-colors
-      ${isActive ? 'text-purple-300 bg-white/20' : 'text-gray-400 hover:text-gray-200'}
+      ${isActive ? 'text-purple-300 bg-white/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}
       ${isMobile ? 'flex-col flex-1' : 'flex-row'}
     `}
     onClick={onClick}

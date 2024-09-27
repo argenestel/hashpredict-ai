@@ -22,12 +22,14 @@ interface PredictionCardProps {
     result: number;
     tags: string[];
   };
-  onPredict: (id: string, verdict: boolean, share: number) => void;
+  onPredict: (id: string, verdict: boolean, share: number, useChip: boolean) => void;
 }
 
 const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
 const config = new AptosConfig({ network: Network.DEVNET });
 const aptos = new Aptos(config);
+
+const CHIP_EXCHANGE_RATE = 100; // 100 CHIP = 1 APT
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }) => {
   const [shareAmount, setShareAmount] = useState(1);
@@ -36,6 +38,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   const [outcome, setOutcome] = useState<number>(0);
   const [isAIFinalizing, setIsAIFinalizing] = useState(false);
   const { account, signAndSubmitTransaction } = useWallet();
+  const [useChips, setUseChips] = useState(true);
 
   const [isPredictionEnded, setIsPredictionEnded] = useState(false);
 
@@ -65,7 +68,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       }
     }
   };
-
 
   const [showUSD, setShowUSD] = useState(true);
   const [aptPrice, setAptPrice] = useState(0);
@@ -138,7 +140,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   const handleDecrement = () => setShareAmount(prev => Math.max(1, prev - 1));
 
   const handlePredict = () => {
-    onPredict(prediction.id, isYesSelected, shareAmount);
+    onPredict(prediction.id, isYesSelected, shareAmount, useChips);
   };
 
   const handleCancel = async () => {
@@ -170,18 +172,21 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       console.error('Error distributing rewards:', error);
     }
   };
+
   const calculatePotentialPayout = (selectedYes: boolean) => {
-    const betAmount = shareAmount * 0.01 * 1e8; // Convert to octas (0.01 APT per share)
+    const betAmount = shareAmount * (useChips ? CHIP_EXCHANGE_RATE : 1e6); // 0.01 APT per share or equivalent in CHIP
     const totalPool = Number(prediction.total_bet);
     const selectedPool = selectedYes ? Number(prediction.yes_votes) : Number(prediction.no_votes);
-    const oppositePool = selectedYes ? Number(prediction.no_votes) : Number(prediction.yes_votes);
     
     if (totalPool === 0 || selectedPool === 0) return 0;
 
-    const payoutRatio = totalPool / selectedPool;
+    // Calculate the payout based on the current voting distribution
+    const payoutRatio = (totalPool * 0.95) / selectedPool; // 5% fee
     const potentialPayout = (betAmount * payoutRatio) / 1e8; // Convert back to APT
+
     return potentialPayout;
   };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(Number(timestamp) * 1000);
     return date.toLocaleString('en-US', { 
@@ -217,35 +222,35 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
 
   return (
     <motion.div 
-    className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
-  >
-    <div className="p-6 flex-grow">
-      <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
-        {description}
-      </h2>
-      <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
-        <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
-          <IoTimeOutline className="mr-2 text-brand-500" />
-          <span>Ends: {formatTime(end_time)}</span>
+      className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="p-6 flex-grow">
+        <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
+          {description}
+        </h2>
+        <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
+          <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
+            <IoTimeOutline className="mr-2 text-brand-500" />
+            <span>Ends: {formatTime(end_time)}</span>
+          </div>
+          <div className="flex items-center bg-brand-100 dark:bg-brand-900 rounded-full px-3 py-1">
+            <IoWalletOutline className="mr-2 text-brand-500" />
+            <span className="font-semibold text-brand-700 dark:text-brand-300">
+              Pool: {formatPrice(total_bet)}
+            </span>
+            <button 
+              onClick={() => setShowUSD(!showUSD)} 
+              className="ml-2 text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+            >
+              <IoSwapHorizontal />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center bg-brand-100 dark:bg-brand-900 rounded-full px-3 py-1">
-          <IoWalletOutline className="mr-2 text-brand-500" />
-          <span className="font-semibold text-brand-700 dark:text-brand-300">
-            Pool: {formatPrice(total_bet)}
-          </span>
-          <button 
-            onClick={() => setShowUSD(!showUSD)} 
-            className="ml-2 text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
-          >
-            <IoSwapHorizontal />
-          </button>
-        </div>
-      </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap gap-2">
           {tags.map((tag, index) => (
             <span key={index} className="bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full text-xs">
               {tag}
@@ -388,8 +393,19 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               <IoAdd size={16} />
             </motion.button>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              ({formatPrice((shareAmount * 0.01 * 1e8).toString())})
+              ({useChips ? `${shareAmount * CHIP_EXCHANGE_RATE} CHIP` : formatPrice((shareAmount * 0.01 * 1e8).toString())})
             </span>
+          </div>
+          <div className="flex items-center space-x-2 mb-4">
+            <label className="inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={useChips}
+                onChange={() => setUseChips(!useChips)}
+                className="form-checkbox h-5 w-5 text-brand-500 rounded border-gray-300 focus:ring-brand-500 dark:border-gray-600 dark:bg-navy-900 dark:focus:ring-brand-400"
+              />
+              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Use CHIP tokens</span>
+            </label>
           </div>
           <motion.button 
             whileHover={{ scale: 1.02 }}
@@ -401,7 +417,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </motion.button>
         </div>
       )}
-
 
       {isAdmin && isActive && isPredictionEnded && (
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
@@ -471,7 +486,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </motion.button>
         </div>
       )}
-  {isPredictionEnded && !isFinalized && !isAdmin && (
+      {isPredictionEnded && !isFinalized && !isAdmin && (
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
             <span className="bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100 px-2 py-1 rounded-full">

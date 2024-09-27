@@ -94,6 +94,22 @@ module prediction_marketplace::chip_token{
         fungible_asset::burn_from(burn_ref, from_wallet, amount);
     }
 
+public entry fun transfer_chips(
+    from: &signer,
+    to: address,
+    amount: u64
+) {
+    let asset = get_metadata();
+    let from_wallet = primary_fungible_store::primary_store(signer::address_of(from), asset);
+    let to_wallet = primary_fungible_store::ensure_primary_store_exists(to, asset);
+
+    // Create a FungibleAsset to transfer
+    let fa = fungible_asset::withdraw(from, from_wallet, amount);
+
+    // Deposit the FungibleAsset to the recipient's wallet
+    fungible_asset::deposit(to_wallet, fa);
+}
+
    /// Freeze an account so it cannot transfer or receive fungible assets.
     public entry fun freeze_account(admin: &signer, account: address) acquires ManagedFungibleAsset {
         let asset = get_metadata();
