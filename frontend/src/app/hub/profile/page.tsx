@@ -300,365 +300,471 @@ const Profile = () => {
   };
 
   return (
-<div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-navy-900 dark:to-navy-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br bg-blue-50  dark:bg-navy-900 p-4 sm:p-6 md:p-8">
       <Toaster />
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-navy-700 dark:text-white mb-2">User Profile</h1>
-          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">Manage your account and view your predictions</p>
-        </div>
+        <h1 className="text-3xl md:text-4xl font-bold text-indigo-900 dark:text-indigo-100 mb-6 text-center">User Profile</h1>
 
         {isLoading ? (
-          <div className="animate-pulse space-y-4">
-            <div className="h-48 bg-white dark:bg-navy-800 rounded-xl shadow-lg"></div>
-            <div className="h-32 bg-white dark:bg-navy-800 rounded-xl shadow-lg"></div>
-          </div>
+          <LoadingSkeleton />
         ) : errorMessage ? (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg" role="alert">
-            <p className="font-bold">Error</p>
-            <p>{errorMessage}</p>
-          </div>
+          <ErrorMessage message={errorMessage} />
         ) : userExists && userInfo ? (
-          <>
-            <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden mb-6">
-              <div className="relative h-32 sm:h-48 bg-gradient-to-r from-blue-500 to-purple-600">
-                <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
-                  <Image
-                    width={96}
-                    height={96}
-                    className="rounded-full border-4 border-white dark:border-navy-700"
-                    src={`https://robohash.org/${account?.address}.png`}
-                    alt="User Avatar"
-                  />
-                </div>
-              </div>
-              <div className="pt-20 px-4 sm:px-6 pb-6">
-                <div className="text-center mb-6">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-navy-700 dark:text-white mb-2">{userInfo.alias}</h2>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsModalOpen(true)}
-                    className="mt-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base inline-flex items-center justify-center transition-colors duration-200"
-                  >
-                    <IoRefresh className="mr-2" /> Change Alias
-                  </motion.button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gray-100 dark:bg-navy-700 p-4 rounded-xl flex items-center justify-between sm:justify-center">
-                    <div className="flex items-center">
-                      <IoWallet className="text-2xl sm:text-3xl text-blue-500 mr-2 sm:mr-3" />
-                      <div>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">APT Balance</p>
-                        <p className="text-lg sm:text-xl font-semibold text-navy-700 dark:text-white">{userInfo.apt_balance}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-100 dark:bg-navy-700 p-4 rounded-xl flex items-center justify-between sm:justify-center">
-                    <div className="flex items-center">
-                      <IoStatsChart className="text-2xl sm:text-3xl text-green-500 mr-2 sm:mr-3" />
-                      <div>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">CHIP Balance</p>
-                        <p className="text-lg sm:text-xl font-semibold text-navy-700 dark:text-white">{userInfo.chip_balance}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-100 dark:bg-navy-700 p-4 rounded-xl flex items-center justify-between sm:justify-center">
-                    <div className="flex items-center">
-                      <IoTrophy className="text-2xl sm:text-3xl text-yellow-500 mr-2 sm:mr-3" />
-                      <div>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Rank</p>
-                        <p className="text-lg sm:text-xl font-semibold text-navy-700 dark:text-white">{userInfo.rank}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xl sm:text-2xl font-bold text-navy-700 dark:text-white">{userInfo.reputation}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Reputation</p>
-                  </div>
-                  <div>
-                    <p className="text-xl sm:text-2xl font-bold text-navy-700 dark:text-white">{userInfo.total_predictions}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Predictions</p>
-                  </div>
-                  <div>
-                    <p className="text-xl sm:text-2xl font-bold text-navy-700 dark:text-white">{userInfo.correct_predictions}</p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Correct Predictions</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-navy-700">
-                  <h3 className="text-xl font-semibold text-navy-700 dark:text-white">Daily Reward</h3>
-                </div>
-                <div className="p-4 sm:p-6">
-                  {dailyClaimInfo ? (
-                    <>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
-                        <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                            Last Claim: {new Date(parseInt(dailyClaimInfo.lastClaimTime) * 1000).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Current Streak: {dailyClaimInfo.currentStreak} days
-                          </p>
-                        </div>
-                        <div className="mt-2 sm:mt-0 text-right">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Next claim in:</p>
-                          <p className="text-lg font-semibold text-navy-700 dark:text-white">
-                            12:34:56
-                          </p>
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700 mb-4">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${(dailyClaimInfo.currentStreak % 7) * 100 / 7}%` }}></div>
-                      </div>
-                      {new Date(parseInt(dailyClaimInfo.lastClaimTime) * 1000).getDate() !== new Date().getDate() ? (
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handleClaimDailyReward}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center transition-colors duration-200"
-                        >
-                          <IoGift className="mr-2" /> Claim Daily Reward
-                        </motion.button>
-                      ) : (
-                        <p className="text-center text-sm sm:text-base text-gray-500 dark:text-gray-400">Daily reward already claimed</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Loading claim info...</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-navy-700">
-                  <h3 className="text-xl font-semibold text-navy-700 dark:text-white">Referrals</h3>
-                </div>
-                <div className="p-4 sm:p-6">
-                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
-                    Total Referrals: {referrals.length}
-                  </p>
-                  {userReferralCode ? (
-                    <div className="mb-4">
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-2">Your Referral Code:</p>
-                      <div className="flex items-center">
-                        <input
-                          type="text"
-                          value={userReferralCode}
-                          readOnly
-                          className="flex-grow p-2 border rounded-l-lg text-sm sm:text-base dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                        />
-                        <button
-                          onClick={copyReferralCode}
-                          className="bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg p-2 transition-colors duration-200"
-                        >
-                          <IoCopy size={20} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={generateReferralCode}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center mb-4 transition-colors duration-200"
-                    >
-                      <IoShare className="mr-2" /> Generate Referral Code
-                    </motion.button>
-                  )}
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsReferralModalOpen(true)}
-                    disabled={isReferralCodeUsed}
-                    className={`w-full ${isReferralCodeUsed ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'} text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center transition-colors duration-200`}
-                  >
-                    <IoShare className="mr-2" /> {isReferralCodeUsed ? 'Referral Code Used' : 'Use Referral Code'}
-                  </motion.button>
-                </div>
-              </div>
-            </div>
-
-            {predictions.length > 0 ? (
-              <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-navy-700">
-                  <h3 className="text-xl font-semibold text-navy-700 dark:text-white">Your Predictions</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-navy-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Verdict</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outcome</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-navy-600">
-                      {predictions.map((prediction, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-navy-700">
-                          <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.prediction_id}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.amount}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.is_chip ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                              {prediction.is_chip ? 'CHIP' : 'APT'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.verdict ? 'Yes' : 'No'}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.outcome ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {prediction.outcome ? 'Correct' : 'Incorrect'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-white dark:bg-navy-800 rounded-xl shadow-lg">
-                <h3 className="text-xl font-bold text-navy-700 dark:text-white mb-2">No predictions made yet</h3>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Start making predictions to see them here!</p>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center mx-auto transition-colors duration-200"
-                >
-                  <IoAdd className="mr-2" /> Make a Prediction
-                </motion.button>
-              </div>
-            )}
-          </>
+          <UserProfile
+            userInfo={userInfo}
+            dailyClaimInfo={dailyClaimInfo}
+            referrals={referrals}
+            predictions={predictions}
+            handleUpdateBalances={handleUpdateBalances}
+            handleClaimDailyReward={handleClaimDailyReward}
+            setIsModalOpen={setIsModalOpen}
+            setIsReferralModalOpen={setIsReferralModalOpen}
+            generateReferralCode={generateReferralCode}
+            copyReferralCode={copyReferralCode}
+            userReferralCode={userReferralCode}
+            isReferralCodeUsed={isReferralCodeUsed}
+          />
         ) : connected ? (
-          <div className="text-center py-8 bg-white dark:bg-navy-800 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-2">No user account found</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Create your account to start using the platform</p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsModalOpen(true)}
-              className="bg-green-500 hover:bg-green-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold flex items-center justify-center mx-auto transition-colors duration-200"
-            >
-              <IoAdd className="mr-2" /> Create Account
-            </motion.button>
-          </div>
+          <CreateAccount setIsModalOpen={setIsModalOpen} />
         ) : (
-          <div className="text-center py-8 bg-white dark:bg-navy-800 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-2">Wallet not connected</h2>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Connect your wallet to view or create your profile</p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold flex items-center justify-center mx-auto transition-colors duration-200"
-            >
-              <IoWallet className="mr-2" /> Connect Wallet
-            </motion.button>
-          </div>
+          <ConnectWallet />
         )}
       </div>
 
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-navy-800 rounded-xl p-6 w-full max-w-sm"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-navy-700 dark:text-white">
-                  {userExists ? 'Change Alias' : 'Create Account'}
-                </h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                  <IoClose size={24} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={newAlias}
-                  onChange={(e) => setNewAlias(e.target.value)}
-                  placeholder={userExists ? 'New Alias' : 'Choose an Alias'}
-                  className="w-full p-2 border rounded-lg text-sm sm:text-base dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleCreateOrChangeAlias}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold transition-colors duration-200"
-                >
-                  {userExists ? 'Change Alias' : 'Create Account'}
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AliasModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        newAlias={newAlias}
+        setNewAlias={setNewAlias}
+        handleCreateOrChangeAlias={handleCreateOrChangeAlias}
+        userExists={userExists}
+      />
 
-      <AnimatePresence>
-        {isReferralModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-navy-800 rounded-xl p-6 w-full max-w-sm"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-navy-700 dark:text-white">
-                  Use Referral Code
-                </h2>
-                <button onClick={() => setIsReferralModalOpen(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                  <IoClose size={24} />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
-                  placeholder="Enter referral code"
-                  className="w-full p-2 border rounded-lg text-sm sm:text-base dark:bg-navy-700 dark:text-white dark:border-navy-600"
-                  disabled={isReferralCodeUsed}
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    handleUseReferralCode();
-                    setIsReferralCodeUsed(true);
-                  }}
-                  disabled={isReferralCodeUsed}
-                  className={`w-full ${isReferralCodeUsed ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold transition-colors duration-200`}
-                >
-                  {isReferralCodeUsed ? 'Referral Code Used' : 'Use Referral Code'}
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ReferralModal
+        isOpen={isReferralModalOpen}
+        onClose={() => setIsReferralModalOpen(false)}
+        referralCode={referralCode}
+        setReferralCode={setReferralCode}
+        handleUseReferralCode={handleUseReferralCode}
+        isReferralCodeUsed={isReferralCodeUsed}
+      />
     </div>
   );
 };
+
+const LoadingSkeleton = () => (
+  <div className="animate-pulse space-y-4">
+    <div className="h-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg"></div>
+    <div className="h-32 bg-white dark:bg-gray-800 rounded-xl shadow-lg"></div>
+  </div>
+);
+
+const ErrorMessage = ({ message }) => (
+  <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg" role="alert">
+    <p className="font-bold">Error</p>
+    <p>{message}</p>
+  </div>
+);
+
+const UserProfile = ({
+  userInfo,
+  dailyClaimInfo,
+  referrals,
+  predictions,
+  handleUpdateBalances,
+  handleClaimDailyReward,
+  setIsModalOpen,
+  setIsReferralModalOpen,
+  generateReferralCode,
+  copyReferralCode,
+  userReferralCode,
+  isReferralCodeUsed
+}) => (
+  <div className="space-y-6">
+    <ProfileHeader userInfo={userInfo} setIsModalOpen={setIsModalOpen} />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <BalanceCard userInfo={userInfo} handleUpdateBalances={handleUpdateBalances} />
+      <StatsCard userInfo={userInfo} />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <DailyRewardCard dailyClaimInfo={dailyClaimInfo} handleClaimDailyReward={handleClaimDailyReward} />
+      <ReferralsCard
+        referrals={referrals}
+        generateReferralCode={generateReferralCode}
+        copyReferralCode={copyReferralCode}
+        userReferralCode={userReferralCode}
+        isReferralCodeUsed={isReferralCodeUsed}
+        setIsReferralModalOpen={setIsReferralModalOpen}
+      />
+    </div>
+    <PredictionsTable predictions={predictions} />
+  </div>
+);
+
+const ProfileHeader = ({ userInfo, setIsModalOpen }) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
+    <div className="relative h-32 sm:h-48 bg-gradient-to-r from-indigo-500 to-purple-600 dark:bg-navy-800">
+      <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
+        <Image
+          width={96}
+          height={96}
+          className="rounded-full border-4 border-white dark:border-gray-700"
+          src={`https://robohash.org/${userInfo.alias}.png`}
+          alt="User Avatar"
+        />
+      </div>
+    </div>
+    <div className="pt-20 px-4 sm:px-6 pb-6 text-center">
+      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">{userInfo.alias}</h2>
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsModalOpen(true)}
+        className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base inline-flex items-center justify-center transition-colors duration-200"
+      >
+        <IoRefresh className="mr-2" /> Change Alias
+      </motion.button>
+    </div>
+  </div>
+);
+
+const BalanceCard = ({ userInfo, handleUpdateBalances }) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6">
+    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Balances</h3>
+    <div className="grid grid-cols-2 gap-4">
+      <div className="bg-indigo-100 dark:bg-indigo-900 p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-indigo-600 dark:text-indigo-300">APT Balance</p>
+            <p className="text-xl font-semibold text-indigo-900 dark:text-indigo-100">{userInfo.apt_balance}</p>
+          </div>
+          <IoWallet className="text-3xl text-indigo-500" />
+        </div>
+      </div>
+      <div className="bg-purple-100 dark:bg-purple-900 p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-purple-600 dark:text-purple-300">CHIP Balance</p>
+            <p className="text-xl font-semibold text-purple-900 dark:text-purple-100">{userInfo.chip_balance}</p>
+          </div>
+          <IoStatsChart className="text-3xl text-purple-500" />
+        </div>
+      </div>
+    </div>
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={handleUpdateBalances}
+      className="mt-4 w-full bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center transition-colors duration-200"
+    >
+      <IoRefresh className="mr-2" /> Update Balances
+    </motion.button>
+  </div>
+);
+
+const StatsCard = ({ userInfo }) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6">
+    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Statistics</h3>
+    <div className="grid grid-cols-2 gap-4">
+      <div className="bg-green-100 dark:bg-green-900 p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-green-600 dark:text-green-300">Rank</p>
+            <p className="text-xl font-semibold text-green-900 dark:text-green-100">{userInfo.rank}</p>
+          </div>
+          <IoTrophy className="text-3xl text-green-500" />
+        </div>
+      </div>
+      <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-yellow-600 dark:text-yellow-300">Reputation</p>
+            <p className="text-xl font-semibold text-yellow-900 dark:text-yellow-100">{userInfo.reputation}</p>
+          </div>
+          <IoStatsChart className="text-3xl text-yellow-500" />
+        </div>
+      </div>
+    </div>
+    <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="text-center">
+        <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{userInfo.total_predictions}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Total Predictions</p>
+      </div>
+      <div className="text-center">
+        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{userInfo.correct_predictions}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Correct Predictions</p>
+      </div>
+    </div>
+  </div>
+);
+
+const DailyRewardCard = ({ dailyClaimInfo, handleClaimDailyReward }) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6">
+    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Daily Reward</h3>
+    {dailyClaimInfo ? (
+      <>
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Last Claim: {new Date(parseInt(dailyClaimInfo.lastClaimTime) * 1000).toLocaleString()}
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Current Streak: {dailyClaimInfo.currentStreak} days
+          </p>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700 mb-4">
+          <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${(dailyClaimInfo.currentStreak % 7) * 100 / 7}%` }}></div>
+        </div>
+        {new Date(parseInt(dailyClaimInfo.lastClaimTime) * 1000).getDate() !== new Date().getDate() ? (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleClaimDailyReward}
+            className="w-full bg-green-500 hover:bg-green-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center transition-colors duration-200"
+          >
+            <IoGift className="mr-2" /> Claim Daily Reward
+          </motion.button>
+        ) : (
+          <p className="text-center text-sm sm:text-base text-gray-500 dark:text-gray-400">Daily reward already claimed</p>
+        )}
+      </>
+    ) : (
+      <p className="text-sm text-gray-600 dark:text-gray-400">Loading claim info...</p>
+    )}
+  </div>
+);
+
+const ReferralsCard = ({
+  referrals,
+  generateReferralCode,
+  copyReferralCode,
+  userReferralCode,
+  isReferralCodeUsed,
+  setIsReferralModalOpen
+}) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg p-6">
+    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Referrals</h3>
+    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">
+      Total Referrals: {referrals.length}
+    </p>
+    {userReferralCode ? (
+      <div className="mb-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Your Referral Code:</p>
+        <div className="flex items-center">
+          <input
+            type="text"
+            value={userReferralCode}
+            readOnly
+            className="flex-grow p-2 border rounded-l-lg text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+          />
+          <button
+            onClick={copyReferralCode}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-r-lg p-2 transition-colors duration-200"
+          >
+            <IoCopy size={20} />
+          </button>
+
+          </div>
+      </div>
+    ) : (
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={generateReferralCode}
+        className="w-full bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center mb-4 transition-colors duration-200"
+      >
+        <IoShare className="mr-2" /> Generate Referral Code
+      </motion.button>
+    )}
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => setIsReferralModalOpen(true)}
+      disabled={isReferralCodeUsed}
+      className={`w-full ${isReferralCodeUsed ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'} text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center transition-colors duration-200`}
+    >
+      <IoShare className="mr-2" /> {isReferralCodeUsed ? 'Referral Code Used' : 'Use Referral Code'}
+    </motion.button>
+  </div>
+);
+
+const PredictionsTable = ({ predictions }) => (
+  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
+    <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Your Predictions</h3>
+    </div>
+    {predictions.length > 0 ? (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Verdict</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outcome</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+            {predictions.map((prediction, index) => (
+              <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.prediction_id}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.amount}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.is_chip ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {prediction.is_chip ? 'CHIP' : 'APT'}
+                  </span>
+                </td>
+                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.verdict ? 'Yes' : 'No'}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.outcome ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {prediction.outcome ? 'Correct' : 'Incorrect'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="text-center py-8">
+        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">No predictions made yet</h3>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Start making predictions to see them here!</p>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center mx-auto transition-colors duration-200"
+        >
+          <IoAdd className="mr-2" /> Make a Prediction
+        </motion.button>
+      </div>
+    )}
+  </div>
+);
+
+const CreateAccount = ({ setIsModalOpen }) => (
+  <div className="text-center py-8 bg-white dark:bg-navy-800 rounded-xl shadow-lg">
+    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No user account found</h2>
+    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Create your account to start using the platform</p>
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => setIsModalOpen(true)}
+      className="bg-green-500 hover:bg-green-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold flex items-center justify-center mx-auto transition-colors duration-200"
+    >
+      <IoAdd className="mr-2" /> Create Account
+    </motion.button>
+  </div>
+);
+
+const ConnectWallet = () => (
+  <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Wallet not connected</h2>
+    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Connect your wallet to view or create your profile</p>
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold flex items-center justify-center mx-auto transition-colors duration-200"
+    >
+      <IoWallet className="mr-2" /> Connect Wallet
+    </motion.button>
+  </div>
+);
+
+const AliasModal = ({ isOpen, onClose, newAlias, setNewAlias, handleCreateOrChangeAlias, userExists }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white dark:bg-navy-800 rounded-xl p-6 w-full max-w-sm"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              {userExists ? 'Change Alias' : 'Create Account'}
+            </h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+              <IoClose size={24} />
+            </button>
+          </div>
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={newAlias}
+              onChange={(e) => setNewAlias(e.target.value)}
+              placeholder={userExists ? 'New Alias' : 'Choose an Alias'}
+              className="w-full p-2 border rounded-lg text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+            />
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCreateOrChangeAlias}
+              className="w-full bg-indigo-500 hover:bg-indigo-800 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold transition-colors duration-200"
+            >
+              {userExists ? 'Change Alias' : 'Create Account'}
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+const ReferralModal = ({ isOpen, onClose, referralCode, setReferralCode, handleUseReferralCode, isReferralCodeUsed }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white dark:bg-navy-800 rounded-xl p-6 w-full max-w-sm"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Use Referral Code
+            </h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+              <IoClose size={24} />
+            </button>
+          </div>
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value)}
+              placeholder="Enter referral code"
+              className="w-full p-2 border rounded-lg text-sm sm:text-base dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              disabled={isReferralCodeUsed}
+            />
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                handleUseReferralCode();
+                onClose();
+              }}
+              disabled={isReferralCodeUsed}
+              className={`w-full ${isReferralCodeUsed ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold transition-colors duration-200`}
+            >
+              {isReferralCodeUsed ? 'Referral Code Used' : 'Use Referral Code'}
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
 
 export default Profile;
