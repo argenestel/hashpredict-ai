@@ -174,7 +174,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   };
 
   const calculatePotentialPayout = (selectedYes: boolean) => {
-    const betAmount = shareAmount * (useChips ? CHIP_EXCHANGE_RATE : 1e6); // 0.01 APT per share or equivalent in CHIP
+    const betAmount = shareAmount * 1e8; // 1 share = 1 APT = 1e8 units
     const totalPool = Number(prediction.total_bet);
     const selectedPool = selectedYes ? Number(prediction.yes_votes) : Number(prediction.no_votes);
     
@@ -187,6 +187,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     return potentialPayout;
   };
 
+  
   const formatTime = (timestamp: string) => {
     const date = new Date(Number(timestamp) * 1000);
     return date.toLocaleString('en-US', { 

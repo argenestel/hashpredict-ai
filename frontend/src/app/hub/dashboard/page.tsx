@@ -11,7 +11,6 @@ const config = new AptosConfig({ network: Network.DEVNET });
 const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
 
-
 interface PredictionData {
   id: string;
   description: string;
@@ -25,7 +24,7 @@ interface PredictionData {
   total_bet: string;
   total_votes: string;
   result: number;
-  tags: string[]; // New field for tags
+  tags: string[];
   prediction_type: number;
   options_count: number;
 }
@@ -40,6 +39,8 @@ const Dashboard = () => {
   const [topic, setTopic] = useState('');
   const [generatedPredictions, setGeneratedPredictions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   const [newPrediction, setNewPrediction] = useState({
     description: '',
@@ -53,6 +54,13 @@ const Dashboard = () => {
     checkAdminRole();
     fetchPredictions();
   }, [account]);
+
+  useEffect(() => {
+    if (predictions.length > 0) {
+      const tags = Array.from(new Set(predictions.flatMap(p => p.tags)));
+      setAllTags(tags);
+    }
+  }, [predictions]);
 
   const checkAdminRole = async () => {
     if (connected && account) {
@@ -130,7 +138,7 @@ const Dashboard = () => {
             total_bet: prediction.total_bet?.toString() ?? '0',
             total_votes: prediction.total_votes?.toString() ?? '0',
             result: Number(prediction.result ?? 0),
-            tags: prediction.tags?.map((tag: any) => tag.toString()) ?? [], // Process tags
+            tags: prediction.tags?.map((tag: any) => tag.toString()) ?? [],
             prediction_type: Number(prediction.prediction_type ?? 0),
             options_count: Number(prediction.options_count ?? 2),
           };
@@ -150,8 +158,6 @@ const Dashboard = () => {
     }
   };
 
-
-  
   const handleRequestFunds = async () => {
     if (!connected || !account) {
       toast.error('Wallet not connected');
@@ -172,6 +178,7 @@ const Dashboard = () => {
       console.error('Error requesting funds:', error);
     }
   };
+
   const handlePredict = async (id: string, verdict: boolean, share: number, useChip: boolean) => {
     if (!connected || !account) {
       console.error('Wallet not connected');
@@ -183,10 +190,9 @@ const Dashboard = () => {
         data: {
           function: `${MODULE_ADDRESS}::hashpredictalpha::predict`,
           typeArguments: [],
-          functionArguments: [id, verdict, share, useChip] // false for not using CHIP tokens
+          functionArguments: [id, verdict, share, useChip]
         },
       });
-      // Refresh predictions after prediction is made
       fetchPredictions();
     } catch (error) {
       console.error('Error making prediction:', error);
@@ -202,13 +208,10 @@ const Dashboard = () => {
     try {
       let tags;
       if (typeof newPrediction.tags === 'string') {
-        // If tags is a string (from manual input), split it
         tags = newPrediction.tags.split(',').map(tag => tag.trim());
       } else if (Array.isArray(newPrediction.tags)) {
-        // If tags is already an array (from generated predictions), use it as is
         tags = newPrediction.tags;
       } else {
-        // If tags is neither a string nor an array, use an empty array
         tags = [];
       }
 
@@ -244,9 +247,9 @@ const Dashboard = () => {
     setNewPrediction({
       description: prediction.description,
       duration: prediction.duration.toString(),
-      tags: prediction.tags, // Keep tags as an array
-      prediction_type: 0, // Assuming all generated predictions are Yes/No type
-      options_count: 2, // Assuming all generated predictions have 2 options (Yes/No)
+      tags: prediction.tags,
+      prediction_type: 0,
+      options_count: 2,
     });
     setIsGeneratePopupOpen(false);
     setIsModalOpen(true);
@@ -264,8 +267,17 @@ const Dashboard = () => {
     setIsGenerating(false);
   };
 
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prevTags =>
+      prevTags.includes(tag)
+        ? prevTags.filter(t => t !== tag)
+        : [...prevTags, tag]
+    );
+  };
 
-
+  const filteredPredictions = predictions.filter(prediction => 
+    selectedTags.length === 0 || prediction.tags.some(tag => selectedTags.includes(tag))
+  );
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
@@ -304,6 +316,27 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Tags filter */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-navy-700 dark:text-white mb-2">Filter by Tags:</h2>
+        <div className="flex flex-wrap gap-2">
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => toggleTag(tag)}
+              className={`px-3 py-1 rounded-full text-sm ${
+                selectedTags.includes(tag)
+                  ? 'bg-brand-500 text-white'
+                  : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, index) => (
@@ -316,9 +349,9 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
-      ) : predictions.length > 0 ? (
+      ) : filteredPredictions.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {predictions.map((prediction) => (
+          {filteredPredictions.map((prediction) => (
             <PredictionCard
               key={prediction.id}
               prediction={prediction}
@@ -365,7 +398,27 @@ const Dashboard = () => {
               </button>
             </div>
             <div className="space-y-4">
-              {/* ... (keep existing form inputs) */}
+              <input
+                type="text"
+                value={newPrediction.description}
+                onChange={(e) => setNewPrediction({...newPrediction, description: e.target.value})}
+                placeholder="Prediction description"
+                className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+              />
+              <input
+                type="number"
+                value={newPrediction.duration}
+                onChange={(e) => setNewPrediction({...newPrediction, duration: e.target.value})}
+                placeholder="Duration in seconds"
+                className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+              />
+              <input
+                type="text"
+                value={newPrediction.tags}
+                onChange={(e) => setNewPrediction({...newPrediction, tags: e.target.value})}
+                placeholder="Tags (comma separated)"
+                className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
+              />
               <button
                 onClick={handleCreatePrediction}
                 className="w-full bg-brand-500 text-white rounded-lg py-2 px-4 hover:bg-brand-600 transition-colors"
