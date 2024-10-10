@@ -76,6 +76,21 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     fetchAptPrice();
   }, []);
 
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [testOutcome, setTestOutcome] = useState(null);
+
+  const handleTestFinalize = async () => {
+    try {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_SERVER_URL}/test/finalize-prediction/${prediction.id}`);
+      setTestOutcome(response.data.outcome);
+      setIsTestModalOpen(true);
+    } catch (error) {
+      console.error('Error in test finalization:', error);
+      // You might want to show an error toast here
+    }
+  };
+
+
   const fetchAptPrice = async () => {
     try {
       const response = await axios.get('https://hermes.pyth.network/api/latest_price_feeds', {
@@ -229,7 +244,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       transition={{ duration: 0.3 }}
     >
       <div className="p-6 flex-grow">
-        <h2 className="text-2xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-2">
+        <h2 className="text-xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-3">
           {description}
         </h2>
         <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
@@ -458,6 +473,24 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
                 </>
               )}
             </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleTestFinalize()}
+              disabled={isAIFinalizing}
+              className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+            >
+              {isAIFinalizing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Finalizing with AI...
+                </>
+              ) : (
+                <>
+                  <IoBulb className="mr-2" /> Test With AI
+                </>
+              )}
+            </motion.button>
           </div>
         </div>
       )}
@@ -474,6 +507,52 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </motion.button>
         </div>
       )}
+
+{isTestModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-navy-800 rounded-lg shadow-xl max-w-md w-full"
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Test Finalization Result</h3>
+                  <button
+                    onClick={() => setIsTestModalOpen(false)}
+                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition duration-150"
+                  >
+                    <IoClose size={24} />
+                  </button>
+                </div>
+                {testOutcome && (
+                  <div className="space-y-4 text-gray-600 dark:text-gray-300">
+                    <p>
+                      <span className="font-semibold">Outcome:</span> 
+                      <span className={`ml-2 ${testOutcome.outcome === 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        {testOutcome.outcome === 0 ? 'No' : 'Yes'}
+                      </span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">Confidence:</span> 
+                      <span className="ml-2">{(testOutcome.confidence * 100).toFixed(2)}%</span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">Explanation:</span> 
+                      <span className="ml-2">{testOutcome.explanation}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
       {isAdmin && isFinalized && (
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">

@@ -246,6 +246,65 @@ app.post("/finalize-prediction/:id", async (req, res) => {
 });
 
 
+app.post("/test/finalize-prediction/:id", async (req, res) => {
+    try {
+        const predictionId = req.params.id;
+
+        console.log(`Attempting to finalize prediction ${predictionId}`);
+
+        // Get prediction details from Aptos
+        let predictionDetailsArray;
+        try {
+            predictionDetailsArray = await getPredictionDetails(predictionId);
+        } catch (error) {
+            console.error("Error fetching prediction details:", error);
+            return res.status(500).json({ error: "Failed to fetch prediction details", details: error.message });
+        }
+
+        if (!Array.isArray(predictionDetailsArray) || predictionDetailsArray.length === 0) {
+            console.error("Invalid prediction data:", predictionDetailsArray);
+            return res.status(404).json({ error: "Prediction not found" });
+        }
+
+        const predictionDetails = predictionDetailsArray[0];
+        const description = predictionDetails.description;
+
+        if (!description) {
+            console.error("Prediction description is undefined:", predictionDetails);
+            return res.status(500).json({ error: "Invalid prediction data", details: "Description is undefined" });
+        }
+
+        console.log(`Finalizing prediction ${predictionId}: ${description}`);
+
+        let currentData;
+        try {
+            currentData = await getPerplexityData(description);
+        } catch (error) {
+            console.error("Error fetching current data:", error);
+            return res.status(500).json({ error: "Failed to fetch current data", details: error.message });
+        }
+
+        let outcome;
+        try {
+            outcome = await determineOutcome(description, currentData);
+        } catch (error) {
+            console.error(`Error determining outcome for prediction ${predictionId}:`, error);
+            return res.status(500).json({ error: "Failed to determine outcome", details: error.message });
+        }
+
+        console.log(`Determined outcome for prediction ${predictionId}:`, outcome);
+
+
+            res.json({ 
+                outcome: outcome,
+            });
+
+    } catch (error) {
+        console.error("Error in finalize-prediction endpoint:", error);
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
+
 async function claimDailyReward(userAddress) {
     const payload = {
         function: `${MODULE_ADDRESS}::reward_system::claim_daily_reward`,
