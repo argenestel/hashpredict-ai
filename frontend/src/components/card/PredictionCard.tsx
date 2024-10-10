@@ -244,7 +244,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       transition={{ duration: 0.3 }}
     >
       <div className="p-6 flex-grow">
-        <h2 className="text-xl font-bold text-navy-700 dark:text-white mb-3 line-clamp-3">
+        <h2 className="font-bold text-navy-700 dark:text-white mb-3 line-clamp-4">
           {description}
         </h2>
         <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
