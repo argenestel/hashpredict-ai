@@ -441,10 +441,10 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               <select 
                 value={outcome}
                 onChange={(e) => setOutcome(parseInt(e.target.value))}
-                className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600 text-sm"
+                className="flex-grow p-2 border rounded dark:text-white dark:bg-navy-700 dark:border-navy-600 text-sm"
               >
-                <option value={0}>Yes</option>
-                <option value={1}>No</option>
+                <option className='dark:text-white' value={0}>Yes</option>
+                <option className='dark:text-white' value={1}>No</option>
               </select>
               <motion.button 
                 whileHover={{ scale: 1.05 }}
