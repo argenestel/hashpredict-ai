@@ -334,14 +334,14 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}
             </span>
           </div>
-          {isActive && (
+          {/* {isActive && (
             <div className="text-navy-700 dark:text-white flex items-center text-sm font-medium">
               Potential Payout: 
               <span className="ml-2 px-2 py-1 rounded-full bg-brand-100 text-brand-800 dark:bg-brand-800 dark:text-brand-100">
                 {potentialPayout.toFixed(2)} APT
               </span>
             </div>
-          )}
+          )} */}
         </div>
         {isFinalized && (
           <p className="text-navy-700 dark:text-white mt-4 text-sm font-medium">
