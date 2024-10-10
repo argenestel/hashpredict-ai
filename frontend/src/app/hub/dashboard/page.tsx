@@ -6,8 +6,8 @@ import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
-const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
-const config = new AptosConfig({ network: Network.DEVNET });
+const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
+const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
 

@@ -24,12 +24,12 @@ const openai = new OpenAI({
 });
 
 // Aptos Configuration
-const NODE_URL = process.env.APTOS_NODE_URL || "https://fullnode.devnet.aptoslabs.com";
+const NODE_URL = process.env.APTOS_NODE_URL || "https://fullnode.testnet.aptoslabs.com";
 const aptosClient = new AptosClient(NODE_URL, {
     WITH_CREDENTIALS: false
 });
 
-const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
+const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const MODULE_NAME = 'hashpredictalpha';
 
 // Create an Aptos account from private key

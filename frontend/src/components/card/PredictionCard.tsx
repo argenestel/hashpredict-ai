@@ -25,10 +25,10 @@ interface PredictionCardProps {
   onPredict: (id: string, verdict: boolean, share: number, useChip: boolean) => void;
 }
 
-const MODULE_ADDRESS = '0xe5daef3712e9be57eee01a28e4b16997e89e0b446546d304d5ec71afc9d1bacd';
-const config = new AptosConfig({ network: Network.DEVNET });
+const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
+const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
-
+//0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7
 const CHIP_EXCHANGE_RATE = 100; // 100 CHIP = 1 APT
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }) => {
