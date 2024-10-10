@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater } from 'react-icons/io5';
+import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
 const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const config = new AptosConfig({ network: Network.TESTNET });
@@ -41,7 +41,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
-
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [newPrediction, setNewPrediction] = useState({
     description: '',
     duration: '',
@@ -61,6 +61,10 @@ const Dashboard = () => {
       setAllTags(tags);
     }
   }, [predictions]);
+
+  const toggleFilterVisibility = () => {
+    setIsFilterVisible(!isFilterVisible);
+  };
 
   const checkAdminRole = async () => {
     if (connected && account) {
@@ -243,6 +247,10 @@ const Dashboard = () => {
     }
   };
 
+  const clearAllTags = () => {
+    setSelectedTags([]);
+  };
+
   const handleSelectPrediction = (prediction: any) => {
     setNewPrediction({
       description: prediction.description,
@@ -284,7 +292,6 @@ const Dashboard = () => {
     <Toaster />
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-        <h1 className="text-2xl sm:text-3xl font-bold text-navy-700 dark:text-white mb-4 sm:mb-0">Prediction Dashboard</h1>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -318,25 +325,61 @@ const Dashboard = () => {
       </div>
 
       {/* Tags filter */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-navy-700 dark:text-white mb-2">Filter by Tags:</h2>
-        <div className="flex flex-wrap gap-2">
-          {allTags.map(tag => (
-            <button
-              key={tag}
-              onClick={() => toggleTag(tag)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedTags.includes(tag)
-                  ? 'bg-brand-500 text-white'
-                  : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      </div>
+       {/* Filter Section Toggle Button */}
+       <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleFilterVisibility}
+          className="mb-4 bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center justify-center"
+        >
+          <IoFilter className="mr-2" />
+          {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
+          {isFilterVisible ? <IoChevronUp className="ml-2" /> : <IoChevronDown className="ml-2" />}
+        </motion.button>
 
+        {/* Collapsible Filter Section */}
+        <AnimatePresence>
+          {isFilterVisible && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-4 overflow-hidden"
+            >
+              <div className="bg-white dark:bg-navy-800 rounded-lg p-4 shadow-md">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-lg font-semibold text-navy-700 dark:text-white">Filter by Tags:</h2>
+                  {selectedTags.length > 0 && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={clearAllTags}
+                      className="flex items-center text-sm text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <IoCloseCircleOutline className="mr-1" /> Clear All
+                    </motion.button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        selectedTags.includes(tag)
+                          ? 'bg-brand-500 text-white'
+                          : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, index) => (

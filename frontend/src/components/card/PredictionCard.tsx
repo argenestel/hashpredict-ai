@@ -173,6 +173,8 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     }
   };
 
+
+
   const handleDistributeRewards = async () => {
     if (!account) return;
     try {
