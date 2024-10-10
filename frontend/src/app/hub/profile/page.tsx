@@ -64,6 +64,8 @@ const Profile = () => {
     }
   }, [account, connected]);
 
+  const URL = process.env.NEXT_PUBLIC_SERVER_URL;
+
   const generateReferralCode = async () => {
     if (!connected || !account) {
       toast.error('Wallet not connected');
@@ -151,7 +153,7 @@ const Profile = () => {
   const fetchDailyClaimInfo = async () => {
     if (!account) return;
     try {
-      const response = await fetch(`http://localhost:4000/get-daily-claim-info/${account.address}`);
+      const response = await fetch(`${URL}/get-daily-claim-info/${account.address}`);
       const data = await response.json();
       setDailyClaimInfo(data);
     } catch (error) {
@@ -163,7 +165,7 @@ const Profile = () => {
   const fetchReferrals = async () => {
     if (!account) return;
     try {
-      const response = await fetch(`http://localhost:4000/get-referrals/${account.address}`);
+      const response = await fetch(`${URL}/get-referrals/${account.address}`);
       const data = await response.json();
       setReferrals(data.referrals);
     } catch (error) {
@@ -179,7 +181,7 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:4000/claim-daily-reward', {
+      const response = await fetch(`${URL}/claim-daily-reward`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +209,7 @@ const Profile = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:4000/use-referral-code', {
+      const response = await fetch(`${URL}/use-referral-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
