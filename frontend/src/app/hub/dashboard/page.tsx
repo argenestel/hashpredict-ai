@@ -366,7 +366,7 @@ const Dashboard = () => {
              <motion.button
              whileHover={{ scale: 1.05 }}
              whileTap={{ scale: 0.95 }}
-             onClick={handleCreateOrChangeAlias}
+             onClick={() => setIsAliasModalOpen(true)}
              className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm  font-semibold flex items-center justify-center mx-auto hover:bg-brand-600 transition-colors"
            >
              <IoPersonAdd className="mr-2" /> Create Account
