@@ -33,6 +33,8 @@ interface DailyClaimInfo {
   currentStreak: string;
 }
 
+
+
 const Profile = () => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [predictions, setPredictions] = useState<PredictionEntry[]>([]);
@@ -92,7 +94,7 @@ const Profile = () => {
     navigator.clipboard.writeText(userReferralCode);
     toast.success('Referral code copied to clipboard');
   };
-  const checkUserExists = async () => {
+const checkUserExists = async () => {
     if (!account) return;
     setIsLoading(true);
     setErrorMessage(null);
@@ -672,7 +674,7 @@ const ConnectWallet = () => (
   </div>
 );
 
-const AliasModal = ({ isOpen, onClose, newAlias, setNewAlias, handleCreateOrChangeAlias, userExists }) => (
+export const AliasModal = ({ isOpen, onClose, newAlias, setNewAlias, handleCreateOrChangeAlias, userExists }) => (
   <AnimatePresence>
     {isOpen && (
       <motion.div

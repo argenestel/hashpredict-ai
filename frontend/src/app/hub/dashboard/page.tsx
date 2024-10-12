@@ -4,12 +4,13 @@ import axios from 'axios';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown } from 'react-icons/io5';
+import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown, IoPersonAdd } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
 const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
+import { AliasModal } from '../profile/page';
 
 interface PredictionData {
   id: string;
@@ -32,6 +33,8 @@ interface PredictionData {
 const Dashboard = () => {
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAliasOpen, setIsAliasModalOpen] = useState(false);
+
   const [isGeneratePopupOpen, setIsGeneratePopupOpen] = useState(false);
   const { account, connected, signAndSubmitTransaction } = useWallet();
   const [isAdminRole, setIsAdminRole] = useState(false);
@@ -50,9 +53,13 @@ const Dashboard = () => {
     options_count: 2,
   });
 
+  const [userExists, setUserExists] = useState(false);
+  const [newAlias, setNewAlias] = useState('');
+
   useEffect(() => {
     checkAdminRole();
     fetchPredictions();
+    checkUserExists();
   }, [account]);
 
   useEffect(() => {
@@ -80,6 +87,52 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Error checking admin role:', error);
       }
+    }
+  };
+
+  const checkUserExists = async () => {
+    if (!account) return;
+    setIsLoading(true);
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::user_account::has_claimed_account`,
+          typeArguments: [],
+          functionArguments: [account.address]
+        }
+      });
+      const exists = result[0];
+      setUserExists(exists);
+      if (!exists) {
+        setIsAliasModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateOrChangeAlias = async () => {
+    if (!connected || !account) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      await signAndSubmitTransaction({
+        data: {
+          function: `${MODULE_ADDRESS}::user_account::register_user`,
+          typeArguments: [],
+          functionArguments: [newAlias]
+        },
+      });
+      toast.success(userExists ? 'Alias changed successfully' : 'Account created successfully');
+      await checkUserExists();
+      setIsAliasModalOpen(false);
+    } catch (error) {
+      console.error('Error creating/changing alias:', error);
+      toast.error(userExists ? 'Failed to change alias' : 'Failed to create account');
     }
   };
 
@@ -291,7 +344,15 @@ const Dashboard = () => {
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
     <Toaster />
     <div className="max-w-7xl mx-auto">
+    {!userExists && (
+  <div className="mb-4 p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-xl shadow-md">
+    <p>You don't have an account. Please create one to continue.</p>
+  </div>
+)}
+
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+    
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -299,8 +360,18 @@ const Dashboard = () => {
             onClick={handleRequestFunds}
             className="bg-blue-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
           >
-            <IoWater className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Request</span> Funds
+            <IoWater className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Request </span> Test Funds
           </motion.button>
+          {!userExists && (
+             <motion.button
+             whileHover={{ scale: 1.05 }}
+             whileTap={{ scale: 0.95 }}
+             onClick={handleCreateOrChangeAlias}
+             className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm  font-semibold flex items-center justify-center mx-auto hover:bg-brand-600 transition-colors"
+           >
+             <IoPersonAdd className="mr-2" /> Create Account
+           </motion.button>
+          )}
           {isAdminRole && (
             <>
               <motion.button
@@ -472,6 +543,15 @@ const Dashboard = () => {
           </motion.div>
         </motion.div>
       )}
+
+<AliasModal
+        isOpen={isAliasOpen}
+        onClose={() => setIsAliasModalOpen(false)}
+        newAlias={newAlias}
+        setNewAlias={setNewAlias}
+        handleCreateOrChangeAlias={handleCreateOrChangeAlias}
+        userExists={userExists}
+      />
 
       {isGeneratePopupOpen && (
         <motion.div
