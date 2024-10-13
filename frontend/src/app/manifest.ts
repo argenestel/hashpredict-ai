@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'HashPredict: AI Prediction Market',
     short_name: 'HashPredict',
     description: 'Pump.fun of Prefiction Markets',
-    start_url: '/hub/dashboard',
+    start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#000000',
