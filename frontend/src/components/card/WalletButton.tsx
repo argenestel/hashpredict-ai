@@ -24,7 +24,7 @@ const WalletButton = ({ name, icon, onClick, special }) => (
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className={`flex items-center justify-between w-full p-4 mb-3 bg-white dark:bg-navy-800 border ${special ? 'border-brand-500 dark:border-brand-400' : 'border-gray-200 dark:border-navy-700'} rounded-xl hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors`}
+    className={`flex items-center justify-between w-full p-4 mb-3 bg-white dark:bg-navy-800 border ${special ? 'border-brand-500  dark:border-brand-400' : 'border-gray-200 dark:border-navy-700'} rounded-xl hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors`}
   >
     <div className="flex items-center">
       {typeof icon === 'string' ? (
@@ -36,7 +36,7 @@ const WalletButton = ({ name, icon, onClick, special }) => (
       )}
       <span className="text-sm font-medium dark:text-white">{name}</span>
     </div>
-    <span className={`text-sm ${special ? 'text-brand-500 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'} font-medium`}>Connect</span>
+    <span className={`text-sm ${special ? 'text-brand-500 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'} font-medium`}>Login</span>
   </motion.button>
 );
 const WalletSelector = ({ onConnect }) => {
@@ -82,10 +82,10 @@ const WalletSelector = ({ onConnect }) => {
     try {
       await disconnect();
       setIsOpen(false);
-      toast.success('Wallet disconnected');
+      toast.success('Logout');
     } catch (error) {
       console.error('Failed to disconnect:', error);
-      toast.error('Failed to Logout');
+      toast.error('Failed to logout');
     }
   };
 
@@ -174,7 +174,7 @@ const WalletSelector = ({ onConnect }) => {
                     onClick={handleDisconnect}
                     className="w-full py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                   >
-                    Disconnect
+                    Logout
                   </motion.button>
                 </div>
               ) : (
@@ -192,11 +192,13 @@ const WalletSelector = ({ onConnect }) => {
                     />
                   ))}
 
-                  {/* Separator */}
-                  {availableWallets.length > 0 && specialWallets.length > 0 && (
-                    <div className="my-4 border-t border-gray-200 dark:border-navy-700"></div>
+{(availableWallets.length > 0 ) && (specialWallets.length > 0 ) && (
+                    <div className="my-4 flex items-center">
+                      <div className="flex-grow border-t border-gray-200 dark:border-navy-700"></div>
+                      <span className="mx-4 text-sm text-gray-500 dark:text-gray-400">or</span>
+                      <div className="flex-grow border-t border-gray-200 dark:border-navy-700"></div>
+                    </div>
                   )}
-
                   {/* Other Available Wallets Section */}
                   {availableWallets.map((wallet) => (
                     <WalletButton

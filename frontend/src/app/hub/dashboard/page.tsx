@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown, IoPersonAdd } from 'react-icons/io5';
+import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown, IoPersonAdd, IoTime } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
 const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const config = new AptosConfig({ network: Network.TESTNET });
@@ -55,7 +55,7 @@ const Dashboard = () => {
 
   const [userExists, setUserExists] = useState(false);
   const [newAlias, setNewAlias] = useState('');
-
+  const [showFinalizedExpired, setShowFinalizedExpired] = useState(false);
   useEffect(() => {
     checkAdminRole();
     fetchPredictions();
@@ -336,9 +336,20 @@ const Dashboard = () => {
     );
   };
 
-  const filteredPredictions = predictions.filter(prediction => 
-    selectedTags.length === 0 || prediction.tags.some(tag => selectedTags.includes(tag))
-  );
+
+  const filteredPredictions = predictions.filter(prediction => {
+    const matchesTags = selectedTags.length === 0 || prediction.tags.some(tag => selectedTags.includes(tag));
+    const isActive = prediction.state.value === 0;
+    const isNotExpired = Number(prediction.end_time) > Date.now() / 1000;
+    
+    if (showFinalizedExpired) {
+      return matchesTags && (!isActive || !isNotExpired);
+    } else {
+      return matchesTags && isActive && isNotExpired;
+    }
+  });
+
+
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
@@ -397,16 +408,30 @@ const Dashboard = () => {
 
       {/* Tags filter */}
        {/* Filter Section Toggle Button */}
-       <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={toggleFilterVisibility}
-          className="mb-4 bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center justify-center"
-        >
-          <IoFilter className="mr-2" />
-          {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
-          {isFilterVisible ? <IoChevronUp className="ml-2" /> : <IoChevronDown className="ml-2" />}
-        </motion.button>
+       <div className="flex justify-between items-center mb-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleFilterVisibility}
+            className="bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center justify-center"
+          >
+            <IoFilter className="mr-2" />
+            {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
+            {isFilterVisible ? <IoChevronUp className="ml-2" /> : <IoChevronDown className="ml-2" />}
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowFinalizedExpired(!showFinalizedExpired)}
+            className={`${
+              showFinalizedExpired ? 'bg-yellow-500' : 'bg-blue-500'
+            } text-white rounded-lg py-2 px-4 flex items-center justify-center`}
+          >
+            <IoTime className="mr-2" />
+            {showFinalizedExpired ? 'Show Running' : 'Show Finalized/Expired'}
+          </motion.button>
+        </div>
 
         {/* Collapsible Filter Section */}
         <AnimatePresence>

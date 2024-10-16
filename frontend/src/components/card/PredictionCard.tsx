@@ -38,7 +38,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   const [outcome, setOutcome] = useState<number>(0);
   const [isAIFinalizing, setIsAIFinalizing] = useState(false);
   const { account, signAndSubmitTransaction } = useWallet();
-  const [useChips, setUseChips] = useState(true);
+  const [useChips, setUseChips] = useState(false);
 
   const [isPredictionEnded, setIsPredictionEnded] = useState(false);
 
