@@ -662,14 +662,14 @@ const CreateAccount = ({ setIsModalOpen }) => (
 
 const ConnectWallet = () => (
   <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
-    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Wallet not connected</h2>
-    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Connect your wallet to view or create your profile</p>
+    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Please Login to Continue</h2>
+    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Login to view or create your profile</p>
     <motion.button
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base font-semibold flex items-center justify-center mx-auto transition-colors duration-200"
     >
-      <IoWallet className="mr-2" /> Connect Wallet
+      <IoWallet className="mr-2" /> Login
     </motion.button>
   </div>
 );

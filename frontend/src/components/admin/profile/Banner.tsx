@@ -42,7 +42,7 @@ const Banner = () => {
       {/* Address and stats */}
       <div className="mt-16 flex flex-col items-center">
         <h4 className="text-xl font-bold text-navy-700 dark:text-white">
-          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connect Wallet'}
+          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Login'}
         </h4>
         <h5 className="text-base font-normal text-gray-600">Prediction Market Player</h5>
       </div>

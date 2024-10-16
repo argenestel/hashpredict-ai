@@ -98,6 +98,7 @@ function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
 
   useEffect(() => {
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
@@ -106,60 +107,105 @@ function InstallPrompt() {
     setIsStandalone(window.matchMedia('(display-mode: standalone)').matches)
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault()
-      // Stash the event so it can be triggered later
       setDeferredPrompt(e)
+      setShowInstallPrompt(true)
+    }
+
+    const handleAppInstalled = () => {
+      setShowInstallPrompt(false)
+      setDeferredPrompt(null)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
   }, [])
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      // Show the install prompt
       deferredPrompt.prompt()
-      // Wait for the user to respond to the prompt
       const { outcome } = await deferredPrompt.userChoice
       if (outcome === 'accepted') {
         console.log('User accepted the install prompt')
       } else {
         console.log('User dismissed the install prompt')
       }
-      // Clear the saved prompt since it can't be used again
       setDeferredPrompt(null)
+      setShowInstallPrompt(false)
     }
   }
 
   if (isStandalone) {
-    return null // Don't show install button if already installed
+    return null
   }
 
   return (
-    <div>
-      <h3>Install App</h3>
-      {isIOS ? (
-        <>
-          <button>Add to Home Screen</button>
+    <>
+      {showInstallPrompt && !isIOS && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          right: '20px',
+          backgroundColor: '#f0f0f0',
+          padding: '15px',
+          borderRadius: '10px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+          zIndex: 1000
+        }}>
+          <h3>Install HashPredict App</h3>
+          <p>Install our app for a better experience!</p>
+          <button onClick={handleInstallClick} style={{
+            backgroundColor: '#4CAF50',
+            border: 'none',
+            color: 'white',
+            padding: '10px 20px',
+            textAlign: 'center',
+            textDecoration: 'none',
+            display: 'inline-block',
+            fontSize: '16px',
+            margin: '4px 2px',
+            cursor: 'pointer',
+            borderRadius: '5px'
+          }}>
+            Install
+          </button>
+          <button onClick={() => setShowInstallPrompt(false)} style={{
+            backgroundColor: '#f44336',
+            border: 'none',
+            color: 'white',
+            padding: '10px 20px',
+            textAlign: 'center',
+            textDecoration: 'none',
+            display: 'inline-block',
+            fontSize: '16px',
+            margin: '4px 2px',
+            cursor: 'pointer',
+            borderRadius: '5px'
+          }}>
+            Not Now
+          </button>
+        </div>
+      )}
+      {isIOS && (
+        <div>
           <p>
             To install this app on your iOS device, tap the share button
             <span role="img" aria-label="share icon"> ⎋ </span>
             and then "Add to Home Screen"
             <span role="img" aria-label="plus icon"> ➕ </span>.
           </p>
-        </>
-      ) : deferredPrompt ? (
-        <button onClick={handleInstallClick}>Install App</button>
-      ) : (
-        <p>App is ready to install. Look for an "Add to Home Screen" option in your browser's menu.</p>
+        </div>
       )}
-    </div>
+    </>
   )
 }
+
 
 export default function Home() {
   useEffect(() => {

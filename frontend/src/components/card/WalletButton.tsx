@@ -85,7 +85,7 @@ const WalletSelector = ({ onConnect }) => {
       toast.success('Wallet disconnected');
     } catch (error) {
       console.error('Failed to disconnect:', error);
-      toast.error('Failed to disconnect wallet');
+      toast.error('Failed to Logout');
     }
   };
 
@@ -116,7 +116,7 @@ const WalletSelector = ({ onConnect }) => {
         className="flex items-center px-4 py-2 bg-brand-500 dark:bg-brand-400 text-white rounded-lg hover:bg-brand-600 dark:hover:bg-brand-500 transition-colors"
       >
         <IoWallet className="mr-2" />
-        {account ? truncateAddress(account.address) : 'Connect Wallet'}
+        {account ? truncateAddress(account.address) : 'Login'}
         <IoChevronDown className="ml-2" />
       </motion.button>
 
