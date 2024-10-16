@@ -355,13 +355,19 @@ const Dashboard = () => {
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
     <Toaster />
     <div className="max-w-7xl mx-auto">
-    {!userExists && (
+    {!userExists && connected && (
   <div className="mb-4 p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-xl shadow-md">
     <p>You don't have an account. Please create one to continue.</p>
   </div>
 )}
+   {!connected && (
+  <div className="mb-4 p-2 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-xl shadow-md">
+    <p>Login to Start Predicting</p>
+  </div>
+)}
 
-
+{connected && (
+  <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
     
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -406,14 +412,12 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Tags filter */}
-       {/* Filter Section Toggle Button */}
-       <div className="flex justify-between items-center mb-4">
+       <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={toggleFilterVisibility}
-            className="bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center justify-center"
+            className="bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center justify-center w-full sm:w-auto"
           >
             <IoFilter className="mr-2" />
             {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
@@ -426,14 +430,13 @@ const Dashboard = () => {
             onClick={() => setShowFinalizedExpired(!showFinalizedExpired)}
             className={`${
               showFinalizedExpired ? 'bg-yellow-500' : 'bg-blue-500'
-            } text-white rounded-lg py-2 px-4 flex items-center justify-center`}
+            } text-white rounded-lg py-2 px-4 flex items-center justify-center w-full sm:w-auto`}
           >
             <IoTime className="mr-2" />
             {showFinalizedExpired ? 'Show Running' : 'Show Finalized/Expired'}
           </motion.button>
         </div>
 
-        {/* Collapsible Filter Section */}
         <AnimatePresence>
           {isFilterVisible && (
             <motion.div
@@ -476,6 +479,9 @@ const Dashboard = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
+)}
+
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, index) => (
