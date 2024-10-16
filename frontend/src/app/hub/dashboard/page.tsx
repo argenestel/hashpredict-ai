@@ -11,6 +11,7 @@ const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
 import { AliasModal } from '../profile/page';
+import InstallPrompt from 'components/card/InstallPrompt';
 
 interface PredictionData {
   id: string;
@@ -353,6 +354,8 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
+            <InstallPrompt />
+
     <Toaster />
     <div className="max-w-7xl mx-auto">
     {!userExists && connected && (
