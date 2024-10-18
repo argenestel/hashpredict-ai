@@ -35,7 +35,7 @@ const Dashboard = () => {
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAliasOpen, setIsAliasModalOpen] = useState(false);
-
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isGeneratePopupOpen, setIsGeneratePopupOpen] = useState(false);
   const { account, connected, signAndSubmitTransaction } = useWallet();
   const [isAdminRole, setIsAdminRole] = useState(false);

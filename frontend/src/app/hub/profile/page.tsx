@@ -605,7 +605,7 @@ const PredictionsTable = ({ predictions }) => (
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Verdict</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outcome</th>
+              {/* <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outcome</th> */}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -619,11 +619,11 @@ const PredictionsTable = ({ predictions }) => (
                   </span>
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.verdict ? 'Yes' : 'No'}</td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
+                {/* <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
                   <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.outcome ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                     {prediction.outcome ? 'Correct' : 'Incorrect'}
                   </span>
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>

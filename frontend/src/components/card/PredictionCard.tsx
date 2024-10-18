@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown, IoSwapHorizontal } from 'react-icons/io5';
+import React, { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, useAnimation } from 'framer-motion';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown, IoSwapHorizontal, IoInformationCircle } from 'react-icons/io5';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
+
 
 interface PredictionCardProps {
   prediction: {
@@ -25,6 +27,9 @@ interface PredictionCardProps {
   onPredict: (id: string, verdict: boolean, share: number, useChip: boolean) => void;
 }
 
+const SLIDER_WIDTH = 300;
+const THUMB_WIDTH = 60;
+const CONFIRMATION_THRESHOLD = 0.8; // 80% of the way to either side
 const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
@@ -235,8 +240,45 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   const isFinalized = stateValue === 2;
   const isCancelled = stateValue === 1;
   const totalApt = formatAPT(total_bet);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleExpand = () => setIsExpanded(!isExpanded);
 
   const potentialPayout = calculatePotentialPayout(isYesSelected);
+
+  const [predictionMade, setPredictionMade] = useState<boolean | null>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const controls = useAnimation();
+
+  const xInput = [-SLIDER_WIDTH / 2 + THUMB_WIDTH / 2, 0, SLIDER_WIDTH / 2 - THUMB_WIDTH / 2];
+  const background = useTransform(x, xInput, [
+    "linear-gradient(90deg, #ef4444 0%, #ef4444 100%)",
+    "linear-gradient(90deg, #ef4444 0%, #22c55e 100%)",
+    "linear-gradient(90deg, #22c55e 0%, #22c55e 100%)"
+  ]);
+
+  const handleDragEnd = () => {
+    const xValue = x.get();
+    const threshold = (SLIDER_WIDTH / 2 - THUMB_WIDTH / 2) * CONFIRMATION_THRESHOLD;
+    
+    if (xValue < -threshold) {
+      onPredict(prediction.id, false, shareAmount, useChips);
+      setPredictionMade(false);
+      controls.start({ x: -SLIDER_WIDTH / 2 + THUMB_WIDTH / 2 });
+    } else if (xValue > threshold) {
+      onPredict(prediction.id, true, shareAmount, useChips);
+      setPredictionMade(true);
+      controls.start({ x: SLIDER_WIDTH / 2 - THUMB_WIDTH / 2 });
+    } else {
+      controls.start({ x: 0 });
+    }
+  };
+
+  const resetPrediction = () => {
+    setPredictionMade(null);
+    controls.start({ x: 0 });
+  };
 
   return (
     <motion.div 
@@ -245,11 +287,21 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
+      
       <div className="p-6 flex-grow">
-        <h2 className="font-bold text-navy-700 dark:text-white mb-3 line-clamp-4">
-          {description}
-        </h2>
-        <div className="flex flex-wrap items-center justify-between mb-6 text-sm text-gray-600 dark:text-gray-400 gap-2">
+      <div className="flex justify-between items-start mb-2">
+          <h2 className="font-bold text-navy-700 dark:text-white text-sm line-clamp-4 flex-grow mr-2">
+            {prediction.description}
+          </h2>
+          <button
+            onClick={toggleExpand}
+            className="text-brand-500 hover:text-brand-600 transition-colors"
+          >
+            <IoInformationCircle size={24} />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between mb-6 text-xs text-gray-600 dark:text-gray-400 gap-2">
           <div className="flex items-center bg-gray-100 dark:bg-navy-700 rounded-full px-3 py-1">
             <IoTimeOutline className="mr-2 text-brand-500" />
             <span>Ends: {formatTime(end_time)}</span>
@@ -268,13 +320,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </div>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          {tags.map((tag, index) => (
-            <span key={index} className="bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full text-xs">
-              {tag}
-            </span>
-          ))}
-        </div>
         
         <div className="mb-6">
           <div className="flex justify-between mb-2">
@@ -312,6 +357,20 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
             />
           </div>
         </div>
+        <AnimatePresence>
+        {isExpanded && (
+        <div>
+
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {tags.map((tag, index) => (
+            <span key={index} className="bg-gray-200 dark:bg-navy-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full text-xs">
+              {tag}
+            </span>
+          ))}
+        </div>
+        
+
 
         <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
           <div className="bg-gray-50 dark:bg-navy-900 rounded-lg p-3">
@@ -323,6 +382,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
             <p>No Price: {formatPrice(no_price)}</p>
           </div>
         </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-navy-700 dark:text-white flex items-center text-sm font-medium">
             Status: 
@@ -343,6 +403,11 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
             </div>
           )} */}
         </div>
+          </div>
+        )}
+        </AnimatePresence>
+
+
         {isFinalized && (
           <p className="text-navy-700 dark:text-white mt-4 text-sm font-medium">
             Result: 
@@ -359,62 +424,60 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
 
       {isActive && !isPredictionEnded && (
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2 flex-grow">
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsYesSelected(true)}
-                className={`py-2 px-4 rounded-lg transition-colors duration-200 text-sm font-medium flex-1 ${
-                  isYesSelected 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
-                }`}
+          <div className="mb-6 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Prediction Amount:
+            </span>
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => setShareAmount(prev => Math.max(0.1, prev - 0.1))}
+                className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2 hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
               >
-                Yes
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsYesSelected(false)}
-                className={`py-2 px-4 rounded-lg transition-colors duration-200 text-sm font-medium flex-1 ${
-                  !isYesSelected 
-                    ? 'bg-red-500 text-white' 
-                    : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
-                }`}
+                -
+              </button>
+              <input 
+                type="number" 
+                value={shareAmount}
+                onChange={(e) => setShareAmount(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
+                className="w-20 text-center border dark:border-navy-600 rounded-lg py-2 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
+                step="0.1"
+              />
+              <button 
+                onClick={() => setShareAmount(prev => prev + 0.1)}
+                className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2 hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
               >
-                No
-              </motion.button>
+                +
+              </button>
             </div>
           </div>
-          <div className="flex items-center space-x-2 mb-4">
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleDecrement}
-              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2"
+          
+          <div className="flex items-center justify-center mb-6" ref={sliderRef}>
+            <motion.div
+              style={{ background, width: SLIDER_WIDTH }}
+              className="h-10 rounded-full relative flex items-center justify-center cursor-pointer shadow-inner"
             >
-              <IoRemove size={16} />
-            </motion.button>
-            <input 
-              type="number" 
-              value={shareAmount}
-              onChange={(e) => setShareAmount(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-20 text-center border dark:border-navy-600 rounded-lg py-2 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
-            />
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleIncrement}
-              className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2"
-            >
-              <IoAdd size={16} />
-            </motion.button>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              ({useChips ? `${shareAmount * CHIP_EXCHANGE_RATE} CHIP` : formatPrice((shareAmount * 0.01 * 1e8).toString())})
-            </span>
+              <motion.div
+                className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-lg font-bold shadow-lg"
+                drag="x"
+                dragConstraints={sliderRef}
+                dragElastic={0.1}
+                dragMomentum={false}
+                onDrag={(_, info) => x.set(info.offset.x)}
+                onDragEnd={handleDragEnd}
+                animate={controls}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {predictionMade === null ? '?' : predictionMade ? 'Yes' : 'No'}
+              </motion.div>
+              <div className="absolute inset-0 flex justify-between items-center px-6 text-white font-semibold pointer-events-none">
+                <span>No</span>
+                <span>Yes</span>
+              </div>
+            </motion.div>
           </div>
-          <div className="flex items-center space-x-2 mb-4">
+
+          <div className="flex items-center justify-between mb-4">
             <label className="inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
@@ -424,17 +487,24 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               />
               <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Use CHIP tokens</span>
             </label>
+            {predictionMade !== null && (
+              <button
+                onClick={resetPrediction}
+                className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+              >
+                Reset Prediction
+              </button>
+            )}
           </div>
-          <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handlePredict}
-            className="w-full bg-gradient-to-r from-brand-400 to-brand-500 dark:from-brand-500 dark:to-brand-400 text-white rounded-lg py-3 px-4 transition-all duration-200 text-sm font-medium"
-          >
-            Predict
-          </motion.button>
+          
+          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+            {predictionMade === null 
+              ? "Slide to confirm your prediction" 
+              : `You predicted: ${predictionMade ? "Yes" : "No"}`}
+          </p>
         </div>
       )}
+
 
       {isAdmin && isActive && isPredictionEnded && (
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">

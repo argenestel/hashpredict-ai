@@ -11,6 +11,9 @@ module prediction_marketplace::hashpredictalpha {
     use std::vector;
     use prediction_marketplace::chip_token;
     use prediction_marketplace::user_account;
+    use prediction_marketplace::role_manager;
+
+
     // Errors
       const E_NOT_INITIALIZED: u64 = 1;
     const E_ALREADY_INITIALIZED: u64 = 2;
@@ -105,7 +108,7 @@ const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for
 fun init_module(admin: &signer) {
     let admin_addr = signer::address_of(admin);
     assert!(!exists<MarketState>(admin_addr), E_ALREADY_INITIALIZED);
-
+    role_manager::initialize(admin);
     move_to(admin, MarketState {
         predictions: simple_map::create(),
         user_predictions: table::new(),
@@ -139,7 +142,7 @@ fun init_module(admin: &signer) {
         let account_addr = signer::address_of(account);
         let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
         
-        assert!(account_addr == market_state.admin, E_NOT_AUTHORIZED);
+    assert!(role_manager::is_creator_or_admin(account_addr), E_NOT_AUTHORIZED);
 
         let prediction_id = market_state.next_prediction_id;
         market_state.next_prediction_id = prediction_id + 1;
@@ -255,7 +258,7 @@ public entry fun resolve_prediction(account: &signer, prediction_id: u64, result
     let account_addr = signer::address_of(account);
     let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
 
-    assert!(account_addr == market_state.admin, E_NOT_AUTHORIZED);
+    assert!(role_manager::is_mod_or_admin(account_addr), E_NOT_AUTHORIZED);
     assert!(simple_map::contains_key(&market_state.predictions, &prediction_id), E_PREDICTION_NOT_FOUND);
     
     let prediction = simple_map::borrow_mut(&mut market_state.predictions, &prediction_id);
