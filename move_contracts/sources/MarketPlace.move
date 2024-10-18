@@ -68,6 +68,7 @@ const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for
         prediction_type: u8,
         options_count: u8,
         tags: vector<String>,
+        creator: address,
         
     }
 
@@ -163,6 +164,7 @@ fun init_module(admin: &signer) {
             prediction_type,
             options_count,
             tags,
+            account_addr,
         };
 
         simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
