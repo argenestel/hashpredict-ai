@@ -52,25 +52,24 @@ const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for
         is_chip: bool,
     }
 
-    struct PredictionDetails has store, copy, drop {
-        id: u64,
-        state: State,
-        description: String,
-        start_time: u64,
-        end_time: u64,
-        total_votes: u64,
-        yes_votes: u64,
-        no_votes: u64,
-        yes_price: u64,
-        no_price: u64,
-        result: u8,
-        total_bet: u64,
-        prediction_type: u8,
-        options_count: u8,
-        tags: vector<String>,
-        creator: address,
-        
-    }
+struct PredictionDetails has store, copy, drop {
+    id: u64,
+    state: State,
+    description: String,
+    start_time: u64,
+    end_time: u64,
+    total_votes: u64,
+    yes_votes: u64,
+    no_votes: u64,
+    yes_price: u64,
+    no_price: u64,
+    result: u8,
+    total_bet: u64,
+    prediction_type: u8,
+    options_count: u8,
+    tags: vector<String>,
+    creator: address,  // Add this line
+}
 
     struct MarketState has key {
         predictions: SimpleMap<u64, PredictionDetails>,
@@ -132,49 +131,50 @@ fun init_module(admin: &signer) {
             vector::push_back(&mut tracker.users, user);
         }
     }
-  public entry fun create_prediction(
-        account: &signer,
-        description: String,
-        duration: u64,
-        tags: vector<String>,
-        prediction_type: u8,
-        options_count: u8
-    ) acquires MarketState {
-        let account_addr = signer::address_of(account);
-        let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
-        
+public entry fun create_prediction(
+    account: &signer,
+    description: String,
+    duration: u64,
+    tags: vector<String>,
+    prediction_type: u8,
+    options_count: u8
+) acquires MarketState {
+    let account_addr = signer::address_of(account);
+    let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
+    
     assert!(role_manager::is_creator_or_admin(account_addr), E_NOT_AUTHORIZED);
 
-        let prediction_id = market_state.next_prediction_id;
-        market_state.next_prediction_id = prediction_id + 1;
+    let prediction_id = market_state.next_prediction_id;
+    market_state.next_prediction_id = prediction_id + 1;
 
-        let prediction_details = PredictionDetails {
-            id: prediction_id,
-            state: State { value: STATE_ACTIVE },
-            description,
-            start_time: timestamp::now_seconds(),
-            end_time: timestamp::now_seconds() + duration,
-            total_votes: 0,
-            yes_votes: 0,
-            no_votes: 0,
-            yes_price: 0,
-            no_price: 0,
-            result: RESULT_UNDEFINED,
-            total_bet: 0,
-            prediction_type,
-            options_count,
-            tags,
-            account_addr,
-        };
+    let prediction_details = PredictionDetails {
+        id: prediction_id,
+        state: State { value: STATE_ACTIVE },
+        description,
+        start_time: timestamp::now_seconds(),
+        end_time: timestamp::now_seconds() + duration,
+        total_votes: 0,
+        yes_votes: 0,
+        no_votes: 0,
+        yes_price: 0,
+        no_price: 0,
+        result: RESULT_UNDEFINED,
+        total_bet: 0,
+        prediction_type,
+        options_count,
+        tags,
+        creator: account_addr,  // Set the creator to the account address
+    };
 
-        simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
+    simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
 
-        event::emit_event(&mut market_state.prediction_created_events, PredictionCreatedEvent {
-            prediction_id,
-            creator: account_addr,
-            description,
-        });
-    }
+    event::emit_event(&mut market_state.prediction_created_events, PredictionCreatedEvent {
+        prediction_id,
+        creator: account_addr,
+        description,
+    });
+}
+
 
     public entry fun predict(
         account: &signer,
@@ -256,7 +256,7 @@ fun init_module(admin: &signer) {
 
 
 
-public entry fun resolve_prediction(account: &signer, prediction_id: u64, result: u8) acquires MarketState {
+public entry fun resolve_prediction(account: &signer, prediction_id: u64, result: u8) acquires MarketState, UserTracker {
     let account_addr = signer::address_of(account);
     let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
 
@@ -275,7 +275,26 @@ public entry fun resolve_prediction(account: &signer, prediction_id: u64, result
         result,
     });
 
-    // Since we can't iterate over the table, we'll update user predictions in the withdraw function
+    // Update user statistics for all participants
+    let users = get_all_prediction_addresses();
+    let i = 0;
+    let len = vector::length(&users);
+    while (i < len) {
+        let user = *vector::borrow(&users, i);
+        if (has_user_predicted(user, prediction_id)) {
+            let user_predictions = get_user_predictions(user, prediction_id);
+            let j = 0;
+            let pred_len = vector::length(&user_predictions);
+            while (j < pred_len) {
+                let user_prediction = vector::borrow(&user_predictions, j);
+                let is_correct = (user_prediction.verdict && result == RESULT_TRUE) || 
+                                 (!user_prediction.verdict && result == RESULT_FALSE);
+                user_account::update_prediction_outcome(user, prediction_id, is_correct);
+                j = j + 1;
+            };
+        };
+        i = i + 1;
+    };
 }
 
 
@@ -449,6 +468,26 @@ public entry fun mass_withdraw(account: &signer, prediction_id: u64) acquires Ma
     }
 
     #[view]
+    public fun get_predictions_by_creator(creator: address): vector<PredictionDetails> acquires MarketState {
+    let market_state = borrow_global<MarketState>(@prediction_marketplace);
+    let predictions = &market_state.predictions;
+    let all_predictions = simple_map::values(predictions);
+    let creator_predictions = vector::empty<PredictionDetails>();
+    
+    let i = 0;
+    let len = vector::length(&all_predictions);
+    while (i < len) {
+        let prediction = vector::borrow(&all_predictions, i);
+        if (prediction.creator == creator) {
+            vector::push_back(&mut creator_predictions, *prediction);
+        };
+        i = i + 1;
+    };
+    
+    creator_predictions
+}
+
+    #[view]
     public fun get_all_predictions(): vector<PredictionDetails> acquires MarketState {
         let market_state = borrow_global<MarketState>(@prediction_marketplace);
         let predictions = &market_state.predictions;
@@ -463,6 +502,14 @@ public entry fun mass_withdraw(account: &signer, prediction_id: u64) acquires Ma
         };
         result
     }
+
+    #[view]
+public fun get_prediction_creator(prediction_id: u64): address acquires MarketState {
+    let market_state = borrow_global<MarketState>(@prediction_marketplace);
+    assert!(simple_map::contains_key(&market_state.predictions, &prediction_id), E_PREDICTION_NOT_FOUND);
+    let prediction = simple_map::borrow(&market_state.predictions, &prediction_id);
+    prediction.creator
+}
 
     #[view]
     public fun get_user_winnings(user: address, prediction_id: u64): u64 acquires MarketState {

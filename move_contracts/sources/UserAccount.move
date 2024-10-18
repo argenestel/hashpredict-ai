@@ -157,13 +157,7 @@ public entry fun register_user(account: &signer, alias: String) acquires UserAcc
         });
     }
 
-    public fun update_prediction_outcome(user_addr: address, prediction_id: u64, is_correct: bool) acquires UserAccount, UserAccountEvents, UnclaimedPredictions {
-        if (exists<UserAccount>(user_addr)) {
-            update_claimed_prediction_outcome(user_addr, prediction_id, is_correct);
-        } else {
-            update_unclaimed_prediction_outcome(user_addr, prediction_id, is_correct);
-        };
-    }
+
 
     fun update_claimed_prediction_outcome(user_addr: address, prediction_id: u64, is_correct: bool) acquires UserAccount, UserAccountEvents {
         let user_account = borrow_global_mut<UserAccount>(user_addr);
@@ -249,34 +243,75 @@ public entry fun register_user(account: &signer, alias: String) acquires UserAcc
         });
     }
 
-    fun update_reputation(user_addr: address, change: u64, reason: bool) acquires UserAccount, UserAccountEvents {
-        let user_account = borrow_global_mut<UserAccount>(user_addr);
-        let old_reputation = user_account.reputation;
-        
-        if (reason) { // Positive change
-            user_account.reputation = user_account.reputation + change;
-        } else {
-            user_account.reputation = if (user_account.reputation > change) user_account.reputation - change else 0;
-        };
 
-        let events = borrow_global_mut<UserAccountEvents>(@prediction_marketplace);
-        event::emit_event(&mut events.reputation_change_events, ReputationChangeEvent {
-            user_address: user_addr,
-            old_reputation,
-            new_reputation: user_account.reputation,
-            reason: string::utf8(b"As given"),
-        });
-    }
 
-    fun update_rank(user_addr: address) acquires UserAccount {
+public fun update_prediction_outcome(user_addr: address, prediction_id: u64, is_correct: bool) acquires UserAccount, UserAccountEvents, UnclaimedPredictions {
+    if (exists<UserAccount>(user_addr)) {
         let user_account = borrow_global_mut<UserAccount>(user_addr);
-        let accuracy = if (user_account.total_predictions > 0) {
-            (user_account.correct_predictions * 100) / user_account.total_predictions
-        } else {
-            0
+        let i = 0;
+        let len = vector::length(&user_account.predictions);
+        while (i < len) {
+            let prediction = vector::borrow_mut(&mut user_account.predictions, i);
+            if (prediction.prediction_id == prediction_id) {
+                prediction.outcome = is_correct;
+                if (is_correct) {
+                    user_account.correct_predictions = user_account.correct_predictions + 1;
+                };
+                user_account.total_predictions = user_account.total_predictions + 1;
+                break
+            };
+            i = i + 1;
         };
-        user_account.rank = (user_account.reputation * accuracy) / 100;
-    }
+        update_reputation(user_addr, if (is_correct) { 5 } else { 2 }, is_correct);
+        update_rank(user_addr);
+    } else {
+        update_unclaimed_prediction_outcome(user_addr, prediction_id, is_correct);
+    };
+}
+
+fun update_reputation(user_addr: address, change: u64, reason: bool) acquires UserAccount, UserAccountEvents {
+    let user_account = borrow_global_mut<UserAccount>(user_addr);
+    let old_reputation = user_account.reputation;
+    
+    if (reason) { // Positive change
+        user_account.reputation = user_account.reputation + change;
+    } else {
+        user_account.reputation = if (user_account.reputation > change) user_account.reputation - change else 0;
+    };
+
+    let events = borrow_global_mut<UserAccountEvents>(@prediction_marketplace);
+    event::emit_event(&mut events.reputation_change_events, ReputationChangeEvent {
+        user_address: user_addr,
+        old_reputation,
+        new_reputation: user_account.reputation,
+        reason: if (reason) { string::utf8(b"Correct prediction") } else { string::utf8(b"Incorrect prediction") },
+    });
+}
+
+fun update_rank(user_addr: address) acquires UserAccount {
+    let user_account = borrow_global_mut<UserAccount>(user_addr);
+    let accuracy = if (user_account.total_predictions > 0) {
+        ((user_account.correct_predictions as u128) * 100) / (user_account.total_predictions as u128)
+    } else {
+        0
+    };
+    user_account.rank = (((user_account.reputation as u128) * accuracy) / 100) as u64;
+}
+
+// Add this function to get user statistics
+#[view]
+public fun get_user_stats(user_addr: address): (u64, u64, u64, u64) acquires UserAccount {
+    assert!(exists<UserAccount>(user_addr), E_NOT_INITIALIZED);
+    let user_account = borrow_global<UserAccount>(user_addr);
+    (
+        user_account.rank,
+        user_account.reputation,
+        user_account.total_predictions,
+        user_account.correct_predictions
+    )
+}  
+
+
     #[view]
     public fun get_user_info(user_addr: address): (String, u64, u64, u64, u64, u64, u64) acquires UserAccount {
         assert!(exists<UserAccount>(user_addr), E_NOT_INITIALIZED);

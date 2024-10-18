@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IoClose, IoRefresh, IoAdd, IoWallet, IoStatsChart, IoTrophy, IoGift, IoShare, IoCopy } from 'react-icons/io5';
 import toast, { Toaster } from "react-hot-toast";
 import Image from 'next/image';
+import PredictionsTable from 'components/table/PredictionTable';
 const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
@@ -307,7 +308,7 @@ const checkUserExists = async () => {
     <div className="min-h-screen bg-gradient-to-br bg-blue-50  dark:bg-navy-900 p-4 sm:p-6 md:p-8">
       <Toaster />
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold text-indigo-900 dark:text-indigo-100 mb-6 text-center">User Profile</h1>
+        {/* <h1 className="text-3xl md:text-4xl font-bold text-indigo-900 dark:text-indigo-100 mb-6 text-center">User Profile</h1> */}
 
         {isLoading ? (
           <LoadingSkeleton />
@@ -591,59 +592,6 @@ const ReferralsCard = ({
   </div>
 );
 
-const PredictionsTable = ({ predictions }) => (
-  <div className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden">
-    <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Your Predictions</h3>
-    </div>
-    {predictions.length > 0 ? (
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Verdict</th>
-              {/* <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Outcome</th> */}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-            {predictions.map((prediction, index) => (
-              <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.prediction_id}</td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.amount}</td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.is_chip ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                    {prediction.is_chip ? 'CHIP' : 'APT'}
-                  </span>
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">{prediction.verdict ? 'Yes' : 'No'}</td>
-                {/* <td className="px-4 py-2 whitespace-nowrap text-xs sm:text-sm">
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${prediction.outcome ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {prediction.outcome ? 'Correct' : 'Incorrect'}
-                  </span>
-                </td> */}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ) : (
-      <div className="text-center py-8">
-        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">No predictions made yet</h3>
-        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-4">Start making predictions to see them here!</p>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg py-2 px-4 text-sm sm:text-base flex items-center justify-center mx-auto transition-colors duration-200"
-        >
-          <IoAdd className="mr-2" /> Make a Prediction
-        </motion.button>
-      </div>
-    )}
-  </div>
-);
 
 const CreateAccount = ({ setIsModalOpen }) => (
   <div className="text-center py-8 bg-white dark:bg-navy-800 rounded-xl shadow-lg">
