@@ -30,7 +30,7 @@ interface PredictionCardProps {
 const SLIDER_WIDTH = 300;
 const THUMB_WIDTH = 60;
 const CONFIRMATION_THRESHOLD = 0.8; // 80% of the way to either side
-const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
+const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
 //0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7

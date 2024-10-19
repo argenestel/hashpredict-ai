@@ -6,7 +6,7 @@ import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import axios from 'axios';
 import { useMotionValue, useTransform } from 'framer-motion';
 
-const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
+const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
 
