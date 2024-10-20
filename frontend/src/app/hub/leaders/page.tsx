@@ -1,154 +1,228 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
+import { motion } from 'framer-motion';
+import { MdOutlineStar, MdArrowUpward, MdArrowDownward } from 'react-icons/md';
 import Card from 'components/card';
-import { MdOutlineStar } from 'react-icons/md';
+import { useRouter } from 'next/navigation';
+const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
+const config = new AptosConfig({ network: Network.TESTNET });
+const aptos = new Aptos(config);
 
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
-
-type RowObj = {
-  rank: number;
-  address: string;
-  luck: number;
-  totalVotes: number;
-  totalAmountWon: number;
-};
-
-const columnHelper = createColumnHelper<RowObj>();
-
-// Demo data
-const demoData: RowObj[] = [
-  { rank: 1, address: '0x1234567890123456789012345678901234567890', luck: 95, totalVotes: 1500, totalAmountWon: 12.5 },
-  { rank: 2, address: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', luck: 88, totalVotes: 1200, totalAmountWon: 10.2 },
-  { rank: 3, address: '0x9876543210987654321098765432109876543210', luck: 82, totalVotes: 1100, totalAmountWon: 9.8 },
-  { rank: 4, address: '0xfedcbafedcbafedcbafedcbafedcbafedcbafed', luck: 75, totalVotes: 950, totalAmountWon: 8.5 },
-  { rank: 5, address: '0x1111222233334444555566667777888899990000', luck: 70, totalVotes: 800, totalAmountWon: 7.2 },
-  { rank: 6, address: '0xaaaabbbbccccddddeeeeffffgggghhhhiiiijjjj', luck: 65, totalVotes: 750, totalAmountWon: 6.8 },
-  { rank: 7, address: '0x123abc456def789ghi012jkl345mno678pqr901', luck: 60, totalVotes: 700, totalAmountWon: 6.3 },
-  { rank: 8, address: '0xzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', luck: 55, totalVotes: 650, totalAmountWon: 5.9 },
-];
+interface LeaderboardEntry {
+  user_address: string;
+  score: number;
+  alias?: string;
+}
 
 const LeaderboardTable: React.FC = () => {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardType, setLeaderboardType] = useState<'daily' | 'weekly' | 'all_time'>('daily');
+  const [isLoading, setIsLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: 'score', direction: 'desc' });
+  const { account } = useWallet();
+const router = useRouter();
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [leaderboardType]);
 
-  const columns = [
-    columnHelper.accessor('rank', {
-      id: 'rank',
-      header: () => <p className="text-sm font-bold text-gray-600 dark:text-white">RANK</p>,
-      cell: (info) => <p className="text-sm font-bold text-navy-700 dark:text-white">{info.getValue()}</p>,
-    }),
-    columnHelper.accessor('address', {
-      id: 'address',
-      header: () => <p className="text-sm font-bold text-gray-600 dark:text-white">ADDRESS</p>,
-      cell: (info) => (
-        <p className="text-sm font-bold text-navy-700 dark:text-white">
-          {`${info.getValue().slice(0, 6)}...${info.getValue().slice(-4)}`}
-        </p>
-      ),
-    }),
-    columnHelper.accessor('luck', {
-      id: 'luck',
-      header: () => <p className="text-sm font-bold text-gray-600 dark:text-white">LUCK</p>,
-      cell: (info) => (
-        <div className="flex items-center">
-          <MdOutlineStar className="mr-1 text-yellow-500" />
-          <p className="text-sm font-bold text-navy-700 dark:text-white">{info.getValue()}</p>
-        </div>
-      ),
-    }),
-    columnHelper.accessor('totalVotes', {
-      id: 'totalVotes',
-      header: () => <p className="text-sm font-bold text-gray-600 dark:text-white">TOTAL VOTES</p>,
-      cell: (info) => <p className="text-sm font-bold text-navy-700 dark:text-white">{info.getValue()}</p>,
-    }),
-    columnHelper.accessor('totalAmountWon', {
-      id: 'totalAmountWon',
-      header: () => <p className="text-sm font-bold text-gray-600 dark:text-white">TOTAL WON (ETH)</p>,
-      cell: (info) => <p className="text-sm font-bold text-navy-700 dark:text-white">{info.getValue().toFixed(2)}</p>,
-    }),
-  ];
+  const fetchLeaderboard = async () => {
+    setIsLoading(true);
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::user_account::get_${leaderboardType}_leaderboard`,
+          typeArguments: [],
+          functionArguments: []
+        }
+      });
+      
+      const leaderboardData: LeaderboardEntry[] = result[0].map((entry: any) => ({
+        user_address: entry.user_address,
+        score: Number(entry.score),
+      }));
 
-  const table = useReactTable({
-    data: demoData,
-    columns,
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    debugTable: true,
-  });
+      // Fetch aliases for each user
+      const leaderboardWithAliases = await Promise.all(
+        leaderboardData.map(async (entry) => {
+          const userInfo = await fetchUserInfo(entry.user_address);
+          return { ...entry, alias: userInfo.alias };
+        })
+      );
+
+      setLeaderboard(leaderboardWithAliases);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchUserInfo = async (address: string) => {
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::user_account::get_user_info`,
+          typeArguments: [],
+          functionArguments: [address]
+        }
+      });
+      return {
+        alias: result[0].toString(),
+        // ... other user info if needed
+      };
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      return { alias: 'Unknown' };
+    }
+  };
+
+  const handleSort = (key: string) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+
+  const navigateToProfile = (address: string) => {
+    router.push(`/hub/profile/${address}`);
+  };
+  const sortedLeaderboard = React.useMemo(() => {
+    const sortableLeaderboard = [...leaderboard];
+    if (sortConfig.key) {
+      sortableLeaderboard.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableLeaderboard;
+  }, [leaderboard, sortConfig]);
 
   return (
-    <Card extra={'w-full h-full px-6 pb-6 sm:overflow-x-auto'}>
-      <div className="relative flex items-center justify-between pt-4">
-        <div className="text-xl font-bold text-navy-700 dark:text-white">
+    <Card extra="w-full h-full p-4">
+      <div className="relative flex flex-col sm:flex-row items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-navy-700 dark:text-white mb-2 sm:mb-0">
           User Leaderboard
+        </h2>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setLeaderboardType('daily')}
+            className={`px-3 py-1 rounded-full text-sm ${
+              leaderboardType === 'daily'
+                ? 'bg-brand-500 text-white'
+                : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Daily
+          </button>
+          <button
+            onClick={() => setLeaderboardType('weekly')}
+            className={`px-3 py-1 rounded-full text-sm ${
+              leaderboardType === 'weekly'
+                ? 'bg-brand-500 text-white'
+                : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Weekly
+          </button>
+          <button
+            onClick={() => setLeaderboardType('all_time')}
+            className={`px-3 py-1 rounded-full text-sm ${
+              leaderboardType === 'all_time'
+                ? 'bg-brand-500 text-white'
+                : 'bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            All Time
+          </button>
         </div>
       </div>
 
-      <div className="mt-8 overflow-x-scroll xl:overflow-x-hidden">
-        <table className="w-full">
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="!border-px !border-gray-400">
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <th
-                      key={header.id}
-                      colSpan={header.colSpan}
-                      onClick={header.column.getToggleSortingHandler()}
-                      className="cursor-pointer border-b border-gray-200 pb-2 pr-4 pt-4 text-start dark:border-white/30"
-                    >
-                      <div className="items-center justify-between text-xs text-gray-200">
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                        {{
-                          asc: ' 🔼',
-                          desc: ' 🔽',
-                        }[header.column.getIsSorted() as string] ?? null}
-                      </div>
-                    </th>
-                  );
-                })}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500"></div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[540px]">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-navy-700">
+                <th className="py-3 px-2 text-left">
+                  <button
+                    onClick={() => handleSort('score')}
+                    className="flex items-center text-xs font-bold text-gray-600 dark:text-white uppercase"
+                  >
+                    Rank
+                    {sortConfig.key === 'score' && (
+                      sortConfig.direction === 'asc' ? <MdArrowUpward className="ml-1" /> : <MdArrowDownward className="ml-1" />
+                    )}
+                  </button>
+                </th>
+                <th className="py-3 px-2 text-left">
+                  <span className="text-xs font-bold text-gray-600 dark:text-white uppercase">User</span>
+                </th>
+                <th className="py-3 px-2 text-left">
+                  <button
+                    onClick={() => handleSort('score')}
+                    className="flex items-center text-xs font-bold text-gray-600 dark:text-white uppercase"
+                  >
+                    Score
+                    {sortConfig.key === 'score' && (
+                      sortConfig.direction === 'asc' ? <MdArrowUpward className="ml-1" /> : <MdArrowDownward className="ml-1" />
+                    )}
+                  </button>
+                </th>
               </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table
-              .getRowModel()
-              .rows
-              .map((row) => {
-                return (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => {
-                      return (
-                        <td
-                          key={cell.id}
-                          className="min-w-[150px] border-white/0 py-3  pr-4"
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {sortedLeaderboard.map((entry, index) => (
+                <motion.tr
+                  key={entry.user_address}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className={`border-b border-gray-200 dark:border-navy-700 ${
+                    account?.address === entry.user_address ? 'bg-brand-50 dark:bg-brand-900' : ''
+                  }`}
+                >
+                  <td className="py-3 px-2">
+                    <span className="text-sm font-bold text-navy-700 dark:text-white">
+                      {index + 1}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center">
+                      <span onClick={() => navigateToProfile(entry.user_address)}
+className="text-sm font-bold text-navy-700 dark:text-white mr-2">
+                        {entry.alias || `${entry.user_address.slice(0, 6)}...${entry.user_address.slice(-4)}`}
+                      </span>
+                      {account?.address === entry.user_address && (
+                        <span className="bg-brand-500 text-white text-xs px-2 py-1 rounded-full">You</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center">
+                      <MdOutlineStar className="mr-1 text-yellow-500" />
+                      <span className="text-sm font-bold text-navy-700 dark:text-white">
+                        {entry.score.toLocaleString()}
+                      </span>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 };

@@ -188,7 +188,6 @@ fun calculate_user_score(user_account: &UserAccount, current_time: u64, days: u6
     (((user_account.reputation as u128) * accuracy) / 100) as u64
 }
 
-// Add this function to sort the leaderboard
 fun sort_leaderboard(leaderboard: &mut vector<LeaderboardEntry>) {
     let i = 1;
     let len = vector::length(leaderboard);
@@ -203,7 +202,7 @@ fun sort_leaderboard(leaderboard: &mut vector<LeaderboardEntry>) {
 }
 
 
-public fun update_leaderboards() acquires Leaderboard, UserTracker, UserAccount {
+public entry fun update_leaderboards() acquires Leaderboard, UserTracker, UserAccount {
     let current_time = timestamp::now_seconds();
     let leaderboard = borrow_global_mut<Leaderboard>(@prediction_marketplace);
 
@@ -220,7 +219,7 @@ public fun update_leaderboards() acquires Leaderboard, UserTracker, UserAccount 
     };
 
     // Update all-time leaderboard
-    leaderboard.all_time = calculate_leaderboard(0); // 0 means all-time
+    leaderboard.all_time = calculate_leaderboard(0); 
 }
 
 fun calculate_leaderboard(days: u64): vector<LeaderboardEntry> acquires UserTracker, UserAccount {

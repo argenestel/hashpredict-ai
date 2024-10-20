@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, useAnimation } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown, IoSwapHorizontal, IoInformationCircle } from 'react-icons/io5';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoCheckmark, IoClose, IoCash, IoBulb, IoTrendingUp, IoTrendingDown, IoSwapHorizontal, IoInformationCircle, IoPerson } from 'react-icons/io5';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import dynamic from 'next/dynamic';
 
-
+const Chart = dynamic(() => import('react-apexcharts'), {
+  ssr: false,
+});
 interface PredictionCardProps {
   prediction: {
     id: string;
@@ -23,6 +26,7 @@ interface PredictionCardProps {
     total_votes: string;
     result: number;
     tags: string[];
+    creator: string;
   };
   onPredict: (id: string, verdict: boolean, share: number, useChip: boolean) => void;
 }
@@ -44,6 +48,8 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
   const [isAIFinalizing, setIsAIFinalizing] = useState(false);
   const { account, signAndSubmitTransaction } = useWallet();
   const [useChips, setUseChips] = useState(false);
+  const [graphData, setGraphData] = useState([]);
+  const [creatorAlias, setCreatorAlias] = useState('');
 
   const [isPredictionEnded, setIsPredictionEnded] = useState(false);
 
@@ -55,7 +61,9 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
 
   useEffect(() => {
     checkAdminRole();
-  }, [account]);
+    fetchGraphData();
+    fetchCreatorAlias();
+  }, [account, prediction]);
 
   const checkAdminRole = async () => {
     if (account) {
@@ -92,6 +100,36 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     } catch (error) {
       console.error('Error in test finalization:', error);
       // You might want to show an error toast here
+    }
+  };
+
+  const fetchGraphData = async () => {
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::get_prediction_graph`,
+          typeArguments: [],
+          functionArguments: [prediction.id]
+        }
+      });
+      setGraphData(result[0]);
+    } catch (error) {
+      console.error('Error fetching graph data:', error);
+    }
+  };
+
+  const fetchCreatorAlias = async () => {
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::user_account::get_user_info`,
+          typeArguments: [],
+          functionArguments: [prediction.creator]
+        }
+      });
+      setCreatorAlias(result[0]);
+    } catch (error) {
+      console.error('Error fetching creator alias:', error);
     }
   };
 
@@ -280,6 +318,56 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     controls.start({ x: 0 });
   };
 
+
+  const chartOptions = {
+    chart: {
+      id: 'prediction-graph',
+      toolbar: {
+        show: false
+      }
+    },
+    xaxis: {
+      type: 'datetime',
+      labels: {
+        datetimeUTC: false
+      }
+    },
+    yaxis: [
+      {
+        title: {
+          text: 'Yes Price'
+        },
+        labels: {
+          formatter: (value) => formatAPT(value.toString())
+        }
+      },
+      {
+        opposite: true,
+        title: {
+          text: 'No Price'
+        },
+        labels: {
+          formatter: (value) => formatAPT(value.toString())
+        }
+      }
+    ],
+    stroke: {
+      curve: 'smooth'
+    },
+    colors: ['#22c55e', '#ef4444']
+  };
+
+  const chartData = [
+    {
+      name: 'Yes Price',
+      data: graphData.map(point => [point.timestamp * 1000, Number(point.yes_price) / 1e8])
+    },
+    {
+      name: 'No Price',
+      data: graphData.map(point => [point.timestamp * 1000, Number(point.no_price) / 1e8])
+    }
+  ];
+
   return (
     <motion.div 
       className="bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700 flex flex-col"
@@ -319,7 +407,10 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
             </button>
           </div>
         </div>
-
+  <div className="flex items-center mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <IoPerson className="mr-2 text-brand-500" />
+          <span>Creator: {creatorAlias || prediction.creator.slice(0, 6) + '...' + prediction.creator.slice(-4)}</span>
+        </div>
         
         <div className="mb-6">
           <div className="flex justify-between mb-2">
@@ -383,6 +474,16 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
           </div>
         </div>
 
+        <div className="mb-6 h-64">
+                <Chart
+                  options={chartOptions}
+                  series={chartData}
+                  type="line"
+                  width="100%"
+                  height="100%"
+                />
+              </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-navy-700 dark:text-white flex items-center text-sm font-medium">
             Status: 
@@ -440,7 +541,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
                 value={shareAmount}
                 onChange={(e) => setShareAmount(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
                 className="w-20 text-center border dark:border-navy-600 rounded-lg py-2 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
-                step="0.1"
+                step="1"
               />
               <button 
                 onClick={() => setShareAmount(prev => prev + 0.1)}

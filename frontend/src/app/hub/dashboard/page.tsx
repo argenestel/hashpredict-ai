@@ -1,17 +1,18 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
-import { Aptos, AptosConfig, Network, MoveValue } from '@aptos-labs/ts-sdk';
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb, IoWater, IoCloseCircleOutline, IoFilter, IoChevronUp, IoChevronDown, IoPersonAdd, IoTime } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
-const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
-const config = new AptosConfig({ network: Network.TESTNET });
-const aptos = new Aptos(config);
 import toast, { Toaster } from "react-hot-toast";
 import { AliasModal } from '../profile/page';
 import InstallPrompt from 'components/card/InstallPrompt';
+
+const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
+const config = new AptosConfig({ network: Network.TESTNET });
+const aptos = new Aptos(config);
 
 interface PredictionData {
   id: string;
@@ -29,16 +30,17 @@ interface PredictionData {
   tags: string[];
   prediction_type: number;
   options_count: number;
+  creator: string;
 }
 
 const Dashboard = () => {
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAliasOpen, setIsAliasModalOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isGeneratePopupOpen, setIsGeneratePopupOpen] = useState(false);
   const { account, connected, signAndSubmitTransaction } = useWallet();
   const [isAdminRole, setIsAdminRole] = useState(false);
+  const [isCreatorRole, setIsCreatorRole] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [topic, setTopic] = useState('');
   const [generatedPredictions, setGeneratedPredictions] = useState([]);
@@ -53,45 +55,42 @@ const Dashboard = () => {
     prediction_type: 0,
     options_count: 2,
   });
-
   const [userExists, setUserExists] = useState(false);
   const [newAlias, setNewAlias] = useState('');
   const [showFinalizedExpired, setShowFinalizedExpired] = useState(false);
-  useEffect(() => {
-    checkAdminRole();
-    fetchPredictions();
-    checkUserExists();
-  }, [account]);
 
-  useEffect(() => {
-    if (predictions.length > 0) {
-      const tags = Array.from(new Set(predictions.flatMap(p => p.tags)));
-      setAllTags(tags);
+  const checkUserRoles = useCallback(async () => {
+    if (connected && account) {
+      try {
+        const [adminResult, creatorResult] = await Promise.all([
+          aptos.view({
+            payload: {
+              function: `${MODULE_ADDRESS}::role_manager::is_admin`,
+              typeArguments: [],
+              functionArguments: [account.address]
+            }
+          }),
+          aptos.view({
+            payload: {
+              function: `${MODULE_ADDRESS}::role_manager::is_creator`,
+              typeArguments: [],
+              functionArguments: [account.address]
+            }
+          })
+        ]);
+        setIsAdminRole(adminResult[0]);
+        setIsCreatorRole(creatorResult[0]);
+      } catch (error) {
+        console.error('Error checking user roles:', error);
+      }
     }
-  }, [predictions]);
+  }, [connected, account]);
 
   const toggleFilterVisibility = () => {
     setIsFilterVisible(!isFilterVisible);
   };
 
-  const checkAdminRole = async () => {
-    if (connected && account) {
-      try {
-        const result = await aptos.view({
-          payload: {
-            function: `${MODULE_ADDRESS}::hashpredictalpha::get_admin`,
-            typeArguments: [],
-            functionArguments: []
-          }
-        });
-        setIsAdminRole(result[0] === account.address);
-      } catch (error) {
-        console.error('Error checking admin role:', error);
-      }
-    }
-  };
-
-  const checkUserExists = async () => {
+  const checkUserExists = useCallback(async () => {
     if (!account) return;
     setIsLoading(true);
     try {
@@ -102,9 +101,8 @@ const Dashboard = () => {
           functionArguments: [account.address]
         }
       });
-      const exists = result[0];
-      setUserExists(exists);
-      if (!exists) {
+      setUserExists(result[0]);
+      if (!result[0]) {
         setIsAliasModalOpen(true);
       }
     } catch (error) {
@@ -112,7 +110,82 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [account]);
+
+  const fetchPredictions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::get_all_predictions`,
+          typeArguments: [],
+          functionArguments: []
+        }
+      });
+  
+      let predictionsArray = Array.isArray(result) && result.length === 1 && Array.isArray(result[0]) ? result[0] : result;
+  
+      if (!Array.isArray(predictionsArray)) {
+        console.error('Expected an array of predictions, but received:', typeof predictionsArray);
+        setPredictions([]);
+        return;
+      }
+  
+      const processedPredictions: PredictionData[] = await Promise.all(predictionsArray.map(async (prediction: any) => {
+        const creatorResult = await aptos.view({
+          payload: {
+            function: `${MODULE_ADDRESS}::hashpredictalpha::get_prediction_creator`,
+            typeArguments: [],
+            functionArguments: [prediction.id]
+          }
+        });
+  
+        // Ensure the creator is converted to a string
+        const creator = Array.isArray(creatorResult) && creatorResult.length > 0
+          ? creatorResult[0].toString()
+          : 'Unknown';
+  
+        return {
+          id: prediction.id?.toString() ?? '',
+          description: prediction.description?.toString() ?? '',
+          end_time: prediction.end_time?.toString() ?? '',
+          start_time: prediction.start_time?.toString() ?? '',
+          state: { value: Number(prediction.state?.value ?? 0) },
+          yes_votes: prediction.yes_votes?.toString() ?? '0',
+          no_votes: prediction.no_votes?.toString() ?? '0',
+          yes_price: prediction.yes_price?.toString() ?? '0',
+          no_price: prediction.no_price?.toString() ?? '0',
+          total_bet: prediction.total_bet?.toString() ?? '0',
+          total_votes: prediction.total_votes?.toString() ?? '0',
+          result: Number(prediction.result ?? 0),
+          tags: prediction.tags?.map((tag: any) => tag.toString()) ?? [],
+          prediction_type: Number(prediction.prediction_type ?? 0),
+          options_count: Number(prediction.options_count ?? 2),
+          creator: creator
+        };
+      }));
+  
+      setPredictions(processedPredictions);
+    } catch (error) {
+      console.error('Error fetching predictions:', error);
+      setPredictions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkUserRoles();
+    fetchPredictions();
+    checkUserExists();
+  }, [account, checkUserRoles, fetchPredictions, checkUserExists]);
+
+  useEffect(() => {
+    if (predictions.length > 0) {
+      const tags = Array.from(new Set(predictions.flatMap(p => p.tags)));
+      setAllTags(tags);
+    }
+  }, [predictions]);
 
   const handleCreateOrChangeAlias = async () => {
     if (!connected || !account) {
@@ -134,85 +207,6 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error creating/changing alias:', error);
       toast.error(userExists ? 'Failed to change alias' : 'Failed to create account');
-    }
-  };
-
-  const processMoveValue = (value: MoveValue): any => {
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return value;
-    } else if (typeof value === 'object' && value !== null) {
-      if (Array.isArray(value)) {
-        return value.map(processMoveValue);
-      } else if ('value' in value) {
-        return processMoveValue(value.value);
-      } else {
-        const processedObject: { [key: string]: any } = {};
-        for (const key in value) {
-          processedObject[key] = processMoveValue(value[key]);
-        }
-        return processedObject;
-      }
-    }
-    return null;
-  };
-
-  const fetchPredictions = async () => {
-    setIsLoading(true);
-    try {
-      const result = await aptos.view({
-        payload: {
-          function: `${MODULE_ADDRESS}::hashpredictalpha::get_all_predictions`,
-          typeArguments: [],
-          functionArguments: []
-        }
-      });
-      console.log('Raw result:', JSON.stringify(result, null, 2));
-
-      let predictionsArray = result;
-      if (Array.isArray(result) && result.length === 1 && Array.isArray(result[0])) {
-        predictionsArray = result[0];
-      }
-
-      if (!Array.isArray(predictionsArray)) {
-        console.error('Expected an array of predictions, but received:', typeof predictionsArray);
-        setPredictions([]);
-        return;
-      }
-
-      const processedPredictions: PredictionData[] = predictionsArray.map((prediction: any, index: number) => {
-        console.log(`Processing prediction ${index}:`, JSON.stringify(prediction, null, 2));
-        
-        try {
-          return {
-            id: prediction.id?.toString() ?? '',
-            description: prediction.description?.toString() ?? '',
-            end_time: prediction.end_time?.toString() ?? '',
-            start_time: prediction.start_time?.toString() ?? '',
-            state: { value: Number(prediction.state?.value ?? 0) },
-            yes_votes: prediction.yes_votes?.toString() ?? '0',
-            no_votes: prediction.no_votes?.toString() ?? '0',
-            yes_price: prediction.yes_price?.toString() ?? '0',
-            no_price: prediction.no_price?.toString() ?? '0',
-            total_bet: prediction.total_bet?.toString() ?? '0',
-            total_votes: prediction.total_votes?.toString() ?? '0',
-            result: Number(prediction.result ?? 0),
-            tags: prediction.tags?.map((tag: any) => tag.toString()) ?? [],
-            prediction_type: Number(prediction.prediction_type ?? 0),
-            options_count: Number(prediction.options_count ?? 2),
-          };
-        } catch (error) {
-          console.error(`Error processing prediction ${index}:`, error);
-          return null;
-        }
-      }).filter((prediction): prediction is PredictionData => prediction !== null);
-
-      console.log('Final processed predictions:', JSON.stringify(processedPredictions, null, 2));
-      setPredictions(processedPredictions);
-    } catch (error) {
-      console.error('Error fetching predictions:', error);
-      setPredictions([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -248,30 +242,27 @@ const Dashboard = () => {
         data: {
           function: `${MODULE_ADDRESS}::hashpredictalpha::predict`,
           typeArguments: [],
-          functionArguments: [id, verdict, share, useChip]
+          functionArguments: [id, verdict, share, useChip] // Convert share to correct units
         },
       });
       fetchPredictions();
+      toast.success('Prediction made successfully');
     } catch (error) {
       console.error('Error making prediction:', error);
+      toast.error('Failed to make prediction');
     }
   };
 
   const handleCreatePrediction = async () => {
-    if (!connected || !account) {
-      console.error('Wallet not connected');
+    if (!connected || !account || !isCreatorRole) {
+      console.error('Not authorized to create prediction');
       return;
     }
 
     try {
-      let tags;
-      if (typeof newPrediction.tags === 'string') {
-        tags = newPrediction.tags.split(',').map(tag => tag.trim());
-      } else if (Array.isArray(newPrediction.tags)) {
-        tags = newPrediction.tags;
-      } else {
-        tags = [];
-      }
+      const tags = Array.isArray(newPrediction.tags) 
+        ? newPrediction.tags 
+        : newPrediction.tags.split(',').map(tag => tag.trim());
 
       await signAndSubmitTransaction({
         data: {
@@ -295,6 +286,7 @@ const Dashboard = () => {
         prediction_type: 0,
         options_count: 2,
       });
+      toast.success('Prediction created successfully');
     } catch (error) {
       console.error('Error creating prediction:', error);
       toast.error('Failed to create prediction. Please try again.');
@@ -370,51 +362,49 @@ const Dashboard = () => {
 )}
 
 {connected && (
-  <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-    
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleRequestFunds}
-            className="bg-blue-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
-          >
-            <IoWater className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Request </span> Test Funds
-          </motion.button>
-          {!userExists && (
-             <motion.button
-             whileHover={{ scale: 1.05 }}
-             whileTap={{ scale: 0.95 }}
-             onClick={() => setIsAliasModalOpen(true)}
-             className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm  font-semibold flex items-center justify-center mx-auto hover:bg-brand-600 transition-colors"
-           >
-             <IoPersonAdd className="mr-2" /> Create Account
-           </motion.button>
-          )}
-          {isAdminRole && (
-            <>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsModalOpen(true)}
-                className="bg-green-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
-              >
-                <IoAdd className="mr-1 sm:mr-2" /> Create
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsGeneratePopupOpen(true)}
-                className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
-              >
-                <IoBulb className="mr-1 sm:mr-2" /> Generate
-              </motion.button>
-            </>
-          )}
-        </div>
-      </div>
-
+   <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleRequestFunds}
+                  className="bg-blue-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
+                >
+                  <IoWater className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Request </span> Test Funds
+                </motion.button>
+                {!userExists && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsAliasModalOpen(true)}
+                    className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm font-semibold flex items-center justify-center mx-auto hover:bg-brand-600 transition-colors"
+                  >
+                    <IoPersonAdd className="mr-2" /> Create Account
+                  </motion.button>
+                )}
+                {(isAdminRole || isCreatorRole) && (
+                  <>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setIsModalOpen(true)}
+                      className="bg-green-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
+                    >
+                      <IoAdd className="mr-1 sm:mr-2" /> Create
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setIsGeneratePopupOpen(true)}
+                      className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
+                    >
+                      <IoBulb className="mr-1 sm:mr-2" /> Generate
+                    </motion.button>
+                  </>
+                )}
+              </div>
+            </div>
        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
           <motion.button
             whileHover={{ scale: 1.05 }}

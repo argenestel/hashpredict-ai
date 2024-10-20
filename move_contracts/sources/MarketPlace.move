@@ -42,7 +42,7 @@ module prediction_marketplace::hashpredictalpha {
     const RESULT_FALSE: u8 = 1;
     const RESULT_UNDEFINED: u8 = 2;
 
-const SHARE_AMOUNT: u64 = 1000000; // 0.01 APT
+const SHARE_AMOUNT: u64 = 10000000; // 0.01 APT
 const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for 8 decimal places
 
 
@@ -630,4 +630,6 @@ public fun get_prediction_graph(prediction_id: u64): vector<PredictionTimePoint>
         let market_state = borrow_global<MarketState>(@prediction_marketplace);
         market_state.admin
     }
+
+
 }
