@@ -9,7 +9,8 @@ import PredictionCard from 'components/card/PredictionCard';
 import toast, { Toaster } from "react-hot-toast";
 import { AliasModal } from '../profile/page';
 import InstallPrompt from 'components/card/InstallPrompt';
-
+import TrendingDashboard from 'components/admin/TrendingDashboard';
+import {CreatorBanner} from 'components/admin/banner';
 const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
@@ -58,6 +59,8 @@ const Dashboard = () => {
   const [userExists, setUserExists] = useState(false);
   const [newAlias, setNewAlias] = useState('');
   const [showFinalizedExpired, setShowFinalizedExpired] = useState(false);
+  const [selectedCreator, setSelectedCreator] = useState(null);
+
 
   const checkUserRoles = useCallback(async () => {
     if (connected && account) {
@@ -330,18 +333,18 @@ const Dashboard = () => {
   };
 
 
-  const filteredPredictions = predictions.filter(prediction => {
-    const matchesTags = selectedTags.length === 0 || prediction.tags.some(tag => selectedTags.includes(tag));
-    const isActive = prediction.state.value === 0;
-    const isNotExpired = Number(prediction.end_time) > Date.now() / 1000;
-    
-    if (showFinalizedExpired) {
-      return matchesTags && (!isActive || !isNotExpired);
-    } else {
-      return matchesTags && isActive && isNotExpired;
-    }
-  });
-
+const filteredPredictions = predictions.filter(prediction => {
+  const matchesTags = selectedTags.length === 0 || prediction.tags.some(tag => selectedTags.includes(tag));
+  const isActive = prediction.state.value === 0;
+  const isNotExpired = Number(prediction.end_time) > Date.now() / 1000;
+  const matchesCreator = selectedCreator ? prediction.creator === selectedCreator : true;
+  
+  if (showFinalizedExpired) {
+    return matchesTags && (!isActive || !isNotExpired) && matchesCreator;
+  } else {
+    return matchesTags && isActive && isNotExpired && matchesCreator;
+  }
+});
 
 
   return (
@@ -363,6 +366,8 @@ const Dashboard = () => {
 
 {connected && (
    <div>
+                   <CreatorBanner className="mb-6" />
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <motion.button
@@ -474,6 +479,11 @@ const Dashboard = () => {
         </AnimatePresence>
         </div>
 )}
+
+<TrendingDashboard predictions={filteredPredictions}  
+      onCreatorFilter={(creator) => setSelectedCreator(creator)}
+
+/>
 
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

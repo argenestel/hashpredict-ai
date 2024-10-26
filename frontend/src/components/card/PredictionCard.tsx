@@ -317,46 +317,136 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
     setPredictionMade(null);
     controls.start({ x: 0 });
   };
+  const isDark = document.documentElement.classList.contains('dark');
 
 
   const chartOptions = {
     chart: {
-      id: 'prediction-graph',
+      type: 'area',
+      height: 250,
       toolbar: {
         show: false
+      },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 800,
+        animateGradually: {
+          enabled: true,
+          delay: 150
+        }
+      },
+      background: 'transparent',
+      fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system'
+    },
+    grid: {
+      show: true,
+      borderColor: isDark ? '#1e293b40' : '#e2e8f040',
+      strokeDashArray: 3,
+      xaxis: {
+        lines: {
+          show: false
+        }
+      },
+      yaxis: {
+        lines: {
+          show: true
+        }
+      },
+      padding: {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 10
+      }
+    },
+    colors: [
+      isDark ? '#22c55e' : '#16a34a',  // Yes line - green
+      isDark ? '#ef4444' : '#dc2626'   // No line - red
+    ],
+    stroke: {
+      width: 3,
+      curve: 'smooth',
+      lineCap: 'round'
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.45,
+        opacityTo: 0.05,
+        stops: [0, 100]
+      }
+    },
+    tooltip: {
+      theme: isDark ? 'dark' : 'light',
+      style: {
+        fontSize: '12px'
+      },
+      x: {
+        format: 'MMM dd, HH:mm'
+      },
+      y: {
+        formatter: (value) => `${value.toFixed(2)} APT`
       }
     },
     xaxis: {
       type: 'datetime',
       labels: {
-        datetimeUTC: false
-      }
-    },
-    yaxis: [
-      {
-        title: {
-          text: 'Yes Price'
+        style: {
+          colors: isDark ? '#94a3b8' : '#64748b',
+          fontSize: '12px'
         },
-        labels: {
-          formatter: (value) => formatAPT(value.toString())
+        datetimeFormatter: {
+          year: 'yyyy',
+          month: 'MMM dd',
+          day: 'MMM dd',
+          hour: 'HH:mm'
         }
       },
-      {
-        opposite: true,
-        title: {
-          text: 'No Price'
-        },
-        labels: {
-          formatter: (value) => formatAPT(value.toString())
-        }
+      axisBorder: {
+        show: false
+      },
+      axisTicks: {
+        show: false
       }
-    ],
-    stroke: {
-      curve: 'smooth'
     },
-    colors: ['#22c55e', '#ef4444']
+    yaxis: {
+      labels: {
+        style: {
+          colors: isDark ? '#94a3b8' : '#64748b',
+          fontSize: '12px'
+        },
+        formatter: (value) => value.toFixed(2)
+      }
+    },
+    markers: {
+      size: 4,
+      strokeWidth: 2,
+      hover: {
+        size: 6
+      }
+    },
+    dataLabels: {
+      enabled: false
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'right',
+      labels: {
+        colors: isDark ? '#94a3b8' : '#64748b'
+      },
+      markers: {
+        width: 8,
+        height: 8,
+        radius: 8
+      },
+      itemMargin: {
+        horizontal: 15
+      }
+    }
   };
-
   const chartData = [
     {
       name: 'Yes Price',
@@ -478,7 +568,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
                 <Chart
                   options={chartOptions}
                   series={chartData}
-                  type="line"
+                  type="area"
                   width="100%"
                   height="100%"
                 />
