@@ -8,6 +8,7 @@ module prediction_marketplace::user_account {
     use aptos_framework::coin;
     use aptos_framework::aptos_coin::AptosCoin;
     use prediction_marketplace::chip_token;
+    use aptos_framework::timestamp;
 
     // Error codes
     const E_NOT_INITIALIZED: u64 = 1;
@@ -36,7 +37,26 @@ module prediction_marketplace::user_account {
         is_chip: bool,
         verdict: bool,
         outcome: bool, // true if the prediction was correct
+            timestamp: u64, 
+
     }
+
+    struct LeaderboardEntry has store, drop, copy {
+    user_address: address,
+    score: u64,
+}
+
+struct UserTracker has key {
+    users: vector<address>,
+}
+
+struct Leaderboard has key {
+    daily: vector<LeaderboardEntry>,
+    weekly: vector<LeaderboardEntry>,
+    all_time: vector<LeaderboardEntry>,
+    last_daily_update: u64,
+    last_weekly_update: u64,
+}
 
     struct UnclaimedPredictions has key {
         predictions: Table<address, vector<PredictionEntry>>,
@@ -87,10 +107,30 @@ module prediction_marketplace::user_account {
             account_claim_events: account::new_event_handle<AccountClaimEvent>(account),
         });
 
+          move_to(account, UserTracker {
+        users: vector::empty(),
+    });
+          move_to(account, Leaderboard {
+        daily: vector::empty(),
+        weekly: vector::empty(),
+        all_time: vector::empty(),
+        last_daily_update: 0,
+        last_weekly_update: 0,
+    });
+
+
         move_to(account, UnclaimedPredictions {
             predictions: table::new(),
         });
     }
+
+
+    public fun add_user(user: address) acquires UserTracker {
+    let tracker = borrow_global_mut<UserTracker>(@prediction_marketplace);
+    if (!vector::contains(&tracker.users, &user)) {
+        vector::push_back(&mut tracker.users, user);
+    }
+}
 
 public entry fun register_user(account: &signer, alias: String) acquires UserAccountEvents {
     let account_addr = signer::address_of(account);
@@ -118,13 +158,104 @@ public entry fun register_user(account: &signer, alias: String) acquires UserAcc
     });
 }
 
+
+
+
+fun calculate_user_score(user_account: &UserAccount, current_time: u64, days: u64): u64 {
+    let start_time = if (days == 0) { 0 } else { current_time - (days * 86400) };
+    let recent_predictions = 0u64;
+    let recent_correct_predictions = 0u64;
+
+    let i = 0;
+    let len = vector::length(&user_account.predictions);
+    while (i < len) {
+        let prediction = vector::borrow(&user_account.predictions, i);
+        if (prediction.timestamp >= start_time) {
+            recent_predictions = recent_predictions + 1;
+            if (prediction.outcome) {
+                recent_correct_predictions = recent_correct_predictions + 1;
+            };
+        };
+        i = i + 1;
+    };
+
+    let accuracy = if (recent_predictions > 0) {
+        ((recent_correct_predictions as u128) * 100) / (recent_predictions as u128)
+    } else {
+        0
+    };
+
+    (((user_account.reputation as u128) * accuracy) / 100) as u64
+}
+
+fun sort_leaderboard(leaderboard: &mut vector<LeaderboardEntry>) {
+    let i = 1;
+    let len = vector::length(leaderboard);
+    while (i < len) {
+        let j = i;
+        while (j > 0 && vector::borrow(leaderboard, j - 1).score < vector::borrow(leaderboard, j).score) {
+            vector::swap(leaderboard, j, j - 1);
+            j = j - 1;
+        };
+        i = i + 1;
+    };
+}
+
+
+public entry fun update_leaderboards() acquires Leaderboard, UserTracker, UserAccount {
+    let current_time = timestamp::now_seconds();
+    let leaderboard = borrow_global_mut<Leaderboard>(@prediction_marketplace);
+
+    // Update daily leaderboard if 24 hours have passed
+    if (current_time - leaderboard.last_daily_update >= 86400) {
+        leaderboard.daily = calculate_leaderboard(1); // 1 day
+        leaderboard.last_daily_update = current_time;
+    };
+
+    // Update weekly leaderboard if 7 days have passed
+    if (current_time - leaderboard.last_weekly_update >= 604800) {
+        leaderboard.weekly = calculate_leaderboard(7); // 7 days
+        leaderboard.last_weekly_update = current_time;
+    };
+
+    // Update all-time leaderboard
+    leaderboard.all_time = calculate_leaderboard(0); 
+}
+
+fun calculate_leaderboard(days: u64): vector<LeaderboardEntry> acquires UserTracker, UserAccount {
+    let leaderboard = vector::empty<LeaderboardEntry>();
+    let users = get_all_users();
+    let current_time = timestamp::now_seconds();
+
+    let i = 0;
+    let len = vector::length(&users);
+    while (i < len) {
+        let user = *vector::borrow(&users, i);
+        if (exists<UserAccount>(user)) {
+            let user_account = borrow_global<UserAccount>(user);
+            let score = calculate_user_score(user_account, current_time, days);
+            vector::push_back(&mut leaderboard, LeaderboardEntry { user_address: user, score });
+        };
+        i = i + 1;
+    };
+
+    sort_leaderboard(&mut leaderboard);
+
+    while (vector::length(&leaderboard) > 100) {
+        vector::pop_back(&mut leaderboard);
+    };
+
+    leaderboard
+}
+
     public fun record_prediction(user_addr: address, prediction_id: u64, amount: u64, is_chip: bool, verdict: bool) acquires UserAccount, UserAccountEvents, UnclaimedPredictions {
         let prediction_entry = PredictionEntry {
             prediction_id,
             amount,
             is_chip,
             verdict,
-            outcome: false, // Will be updated when the prediction is resolved
+            outcome: false,
+             timestamp: timestamp::now_seconds(),
         };
 
         if (exists<UserAccount>(user_addr)) {
@@ -357,4 +488,30 @@ public fun get_user_stats(user_addr: address): (u64, u64, u64, u64) acquires Use
             vector::empty()
         }
     }
+
+    #[view]
+public fun get_daily_leaderboard(): vector<LeaderboardEntry> acquires Leaderboard {
+    let leaderboard = borrow_global<Leaderboard>(@prediction_marketplace);
+    *&leaderboard.daily
+}
+
+#[view]
+public fun get_all_users(): vector<address> acquires UserTracker {
+    let tracker = borrow_global<UserTracker>(@prediction_marketplace);
+    *&tracker.users
+}
+
+#[view]
+public fun get_weekly_leaderboard(): vector<LeaderboardEntry> acquires Leaderboard {
+    let leaderboard = borrow_global<Leaderboard>(@prediction_marketplace);
+    *&leaderboard.weekly
+}
+
+#[view]
+public fun get_all_time_leaderboard(): vector<LeaderboardEntry> acquires Leaderboard {
+    let leaderboard = borrow_global<Leaderboard>(@prediction_marketplace);
+    *&leaderboard.all_time
+}
+
+
 }

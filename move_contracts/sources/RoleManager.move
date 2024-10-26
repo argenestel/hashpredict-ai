@@ -29,15 +29,22 @@ module prediction_marketplace::role_manager {
             table::upsert(&mut role_manager.roles, admin_addr, ROLE_ADMIN);
 
     }
+
+        #[view]
       public fun is_creator_or_admin(account_addr: address): bool acquires RoleManager {
         is_creator(account_addr) || is_admin(account_addr)
     }
+        #[view]
       public fun is_mod_or_admin(account_addr: address): bool acquires RoleManager {
         is_mod(account_addr) || is_admin(account_addr)
     }
+
+        #[view]
      public fun is_mod_or_creator(account_addr: address): bool acquires RoleManager {
         is_mod(account_addr) || is_creator(account_addr)
     }
+
+    
 public entry fun assign_role(admin: &signer, user_addr: address, role: u8) acquires RoleManager {
     let admin_addr = signer::address_of(admin);
     assert!(has_role(admin_addr, ROLE_ADMIN), E_NOT_AUTHORIZED);
@@ -47,6 +54,7 @@ public entry fun assign_role(admin: &signer, user_addr: address, role: u8) acqui
     table::upsert(&mut role_manager.roles, user_addr, role);
 }
 
+    #[view]
    public fun has_role(user_addr: address, required_role: u8): bool acquires RoleManager {
         let role_manager = borrow_global<RoleManager>(@prediction_marketplace);
         if (table::contains(&role_manager.roles, user_addr)) {
@@ -58,14 +66,17 @@ public entry fun assign_role(admin: &signer, user_addr: address, role: u8) acqui
     }
 
     // Add these new public functions
+        #[view]
     public fun is_creator(user_addr: address): bool acquires RoleManager {
         has_role(user_addr, ROLE_CREATOR)
     }
 
+    #[view]
     public fun is_mod(user_addr: address): bool acquires RoleManager {
         has_role(user_addr, ROLE_MOD)
     }
 
+    #[view]
     public fun is_admin(user_addr: address): bool acquires RoleManager {
         has_role(user_addr, ROLE_ADMIN)
     }

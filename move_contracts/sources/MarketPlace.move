@@ -42,7 +42,7 @@ module prediction_marketplace::hashpredictalpha {
     const RESULT_FALSE: u8 = 1;
     const RESULT_UNDEFINED: u8 = 2;
 
-const SHARE_AMOUNT: u64 = 1000000; // 0.01 APT
+const SHARE_AMOUNT: u64 = 10000000; // 0.01 APT
 const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for 8 decimal places
 
 
@@ -51,6 +51,16 @@ const CHIP_EXCHANGE_RATE: u64 = 10000000000; // 100 CHIP = 1 APT, accounting for
         verdict: bool,
         is_chip: bool,
     }
+
+    struct PredictionTimePoint has store, drop, copy {
+    timestamp: u64,
+    yes_price: u64,
+    no_price: u64,
+}
+
+struct PredictionGraph has store, copy, drop {
+    time_points: vector<PredictionTimePoint>,
+}
 
 struct PredictionDetails has store, copy, drop {
     id: u64,
@@ -68,7 +78,8 @@ struct PredictionDetails has store, copy, drop {
     prediction_type: u8,
     options_count: u8,
     tags: vector<String>,
-    creator: address,  // Add this line
+    creator: address,
+        graph: PredictionGraph,
 }
 
     struct MarketState has key {
@@ -123,6 +134,7 @@ fun init_module(admin: &signer) {
         users: vector::empty<address>(),
     });
 
+
     user_account::initialize(admin);
 }
     fun add_user_to_tracker(user: address) acquires UserTracker {
@@ -164,6 +176,9 @@ public entry fun create_prediction(
         options_count,
         tags,
         creator: account_addr,  // Set the creator to the account address
+          graph: PredictionGraph {
+            time_points: vector::empty(),
+        },
     };
 
     simple_map::add(&mut market_state.predictions, prediction_id, prediction_details);
@@ -175,6 +190,16 @@ public entry fun create_prediction(
     });
 }
 
+fun update_prediction_graph(prediction: &mut PredictionDetails) {
+    let current_time = timestamp::now_seconds();
+    let new_point = PredictionTimePoint {
+        timestamp: current_time,
+        yes_price: prediction.yes_price,
+        no_price: prediction.no_price,
+    };
+    vector::push_back(&mut prediction.graph.time_points, new_point);
+}
+
 
     public entry fun predict(
         account: &signer,
@@ -182,7 +207,7 @@ public entry fun create_prediction(
         verdict: bool,
         share: u64,
         use_chip: bool
-    ) acquires MarketState {
+    ) acquires MarketState, UserTracker {
         let account_addr = signer::address_of(account);
         let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
 
@@ -235,7 +260,9 @@ public entry fun create_prediction(
 
         // Record prediction
         vector::push_back(user_prediction_vector, UserPrediction { share, verdict, is_chip: use_chip });
-
+    update_prediction_graph(prediction);
+    user_account::add_user(account_addr);
+add_user_to_tracker(account_addr);
         // Update total bet
         prediction.total_bet = prediction.total_bet + apt_equivalent;
 
@@ -376,6 +403,8 @@ public entry fun resolve_prediction(account: &signer, prediction_id: u64, result
         *&tracker.users
     }
 
+
+
 public entry fun mass_withdraw(account: &signer, prediction_id: u64) acquires MarketState, UserTracker {
     let account_addr = signer::address_of(account);
     let market_state = borrow_global_mut<MarketState>(@prediction_marketplace);
@@ -511,6 +540,13 @@ public fun get_prediction_creator(prediction_id: u64): address acquires MarketSt
     prediction.creator
 }
 
+#[view]
+public fun get_prediction_graph(prediction_id: u64): vector<PredictionTimePoint> acquires MarketState {
+    let market_state = borrow_global<MarketState>(@prediction_marketplace);
+    let prediction = simple_map::borrow(&market_state.predictions, &prediction_id);
+    *&prediction.graph.time_points
+}
+
     #[view]
     public fun get_user_winnings(user: address, prediction_id: u64): u64 acquires MarketState {
         let market_state = borrow_global<MarketState>(@prediction_marketplace);
@@ -594,4 +630,6 @@ public fun get_prediction_creator(prediction_id: u64): address acquires MarketSt
         let market_state = borrow_global<MarketState>(@prediction_marketplace);
         market_state.admin
     }
+
+
 }

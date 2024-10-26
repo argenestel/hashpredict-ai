@@ -3,15 +3,100 @@ import React, { useState, useEffect } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { motion } from 'framer-motion';
-import { IoWallet, IoRefresh } from 'react-icons/io5';
+import { IoWallet, IoRefresh, IoRibbon, IoPencil } from 'react-icons/io5';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { PredictionsTable } from 'components/table/PredictionTable';
+import Card from 'components/card';
 
 const config = new AptosConfig({ network: Network.TESTNET });
 const aptos = new Aptos(config);
-const MODULE_ADDRESS = '0xae2ebac0c8ffb7be58f7b661b80a21c7555363384914e2a1ebb5bd86aeedccf7';
+const MODULE_ADDRESS = process.env.NEXT_PUBLIC_MODULEADDRESS;
+
+const CreatedPredictionsCard = ({ predictions }) => (
+  <Card extra="w-full h-full p-4 mb-6">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center">
+        <IoPencil className="text-2xl text-brand-500 mr-2" />
+        <h2 className="text-lg font-bold text-navy-700 dark:text-white">
+          Created Predictions
+        </h2>
+      </div>
+      <span className="bg-brand-50 dark:bg-navy-700 text-brand-500 dark:text-brand-400 px-3 py-1 rounded-full text-sm">
+        {predictions.length} Total
+      </span>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-gray-200 dark:border-navy-700">
+            <th className="py-3 px-2 text-left text-xs font-bold text-gray-600 dark:text-white uppercase">
+              Description
+            </th>
+            <th className="py-3 px-2 text-left text-xs font-bold text-gray-600 dark:text-white uppercase">
+              Status
+            </th>
+            <th className="py-3 px-2 text-left text-xs font-bold text-gray-600 dark:text-white uppercase">
+              Total Votes
+            </th>
+            <th className="py-3 px-2 text-left text-xs font-bold text-gray-600 dark:text-white uppercase">
+              Pool Size
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {predictions.map((prediction, index) => (
+            <motion.tr
+              key={prediction.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="border-b border-gray-200 dark:border-navy-700"
+            >
+              <td className="py-3 px-2">
+                <p className="text-sm font-medium text-navy-700 dark:text-white line-clamp-1">
+                  {prediction.description}
+                </p>
+              </td>
+              <td className="py-3 px-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  prediction.state.value === 0 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : prediction.state.value === 1
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                }`}>
+                  {prediction.state.value === 0 ? 'Active' : prediction.state.value === 1 ? 'Paused' : 'Resolved'}
+                </span>
+              </td>
+              <td className="py-3 px-2">
+                <span className="text-sm font-medium text-navy-700 dark:text-white">
+                  {prediction.total_votes}
+                </span>
+              </td>
+              <td className="py-3 px-2">
+                <span className="text-sm font-medium text-navy-700 dark:text-white">
+                  {(Number(prediction.total_bet) / 1e8).toFixed(2)} APT
+                </span>
+              </td>
+            </motion.tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Card>
+);
+
+const CreatorBadge = ({ totalPredictions }) => (
+  <div className="flex items-center mt-2">
+    <IoRibbon className="text-brand-500 mr-2" />
+    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+      Creator • {totalPredictions} Predictions
+    </span>
+  </div>
+);
 
 const ProfilePage = () => {
   const { slug } = useParams();
@@ -20,12 +105,49 @@ const ProfilePage = () => {
   const [predictions, setPredictions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
+  const [createdPredictions, setCreatedPredictions] = useState([]);
+
   const LoadingSkeleton = () => (
     <div className="animate-pulse space-y-4">
       <div className="h-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg"></div>
       <div className="h-32 bg-white dark:bg-gray-800 rounded-xl shadow-lg"></div>
     </div>
   );
+
+  const fetchUserData = async (address) => {
+    try {
+      const [userInfo, predictions, creatorPreds] = await Promise.all([
+        fetchUserInfo(address),
+        fetchUserPredictions(address),
+        fetchCreatedPredictions(address)
+      ]);
+      setUserInfo(userInfo);
+      setPredictions(predictions);
+      setCreatedPredictions(creatorPreds);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      toast.error('Failed to load profile data');
+    }
+  };
+
+  const fetchCreatedPredictions = async (address) => {
+    try {
+      const result = await aptos.view({
+        payload: {
+          function: `${MODULE_ADDRESS}::hashpredictalpha::get_predictions_by_creator`,
+          typeArguments: [],
+          functionArguments: [address]
+        }
+      });
+      return result[0] || [];
+    } catch (error) {
+      console.error('Error fetching created predictions:', error);
+      return [];
+    }
+  };
+
+
+
   useEffect(() => {
     const initProfile = async () => {
       setIsLoading(true);
@@ -76,19 +198,6 @@ const ProfilePage = () => {
     }
   };
 
-  const fetchUserData = async (address: string) => {
-    try {
-      const [userInfo, predictions] = await Promise.all([
-        fetchUserInfo(address),
-        fetchUserPredictions(address)
-      ]);
-      setUserInfo(userInfo);
-      setPredictions(predictions);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      toast.error('Failed to load profile data');
-    }
-  };
 
   const fetchUserInfo = async (address: string) => {
     const result = await aptos.view({
@@ -155,9 +264,14 @@ const ProfilePage = () => {
           <div className="pt-20 px-4 sm:px-6 pb-6 text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               {userInfo.alias}
-            </h2>
 
+              {createdPredictions.length > 0 && (
+        <CreatorBadge totalPredictions={createdPredictions.length} />
+      )}
+            </h2>
+           
           </div>
+
         </div>
 
         {/* Stats Grid */}
@@ -197,6 +311,10 @@ const ProfilePage = () => {
             </>
           )}
         </div>
+
+        {createdPredictions.length > 0 && (
+        <CreatedPredictionsCard predictions={createdPredictions} />
+      )}
 
         {/* Predictions Table */}
         <PredictionsTable predictions={predictions}/>
