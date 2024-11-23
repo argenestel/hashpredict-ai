@@ -402,7 +402,7 @@ const UserProfile = ({
         setIsReferralModalOpen={setIsReferralModalOpen}
       />
     </div>
-    <PredictionsTable predictions={predictions} />
+    {/* <PredictionsTable predictions={predictions} /> */}
   </div>
 );
 
