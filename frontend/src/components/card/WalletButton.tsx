@@ -49,10 +49,10 @@ const WalletSelector = ({ onConnect }) => {
     const installed = wallets.filter((wallet) => wallet.readyState === WalletReadyState.Installed);
     
     const special = installed.filter(wallet => 
-      wallet.name === 'Mizu Wallet' || wallet.name === 'Continue with Google'
+      wallet.name === 'Mizu Wallet' || wallet.name === 'Continue with Google' || wallet.name === "Login as Guest"
     );
     const others = installed.filter(wallet => 
-      wallet.name !== 'Mizu Wallet' && wallet.name !== 'Continue with Google'
+      wallet.name !== 'Mizu Wallet' && wallet.name !== 'Continue with Google' || wallet.name !== "Login as Guest"
     );
 
     setSpecialWallets(special);

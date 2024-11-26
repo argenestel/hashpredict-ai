@@ -205,6 +205,7 @@ const Dashboard = () => {
         },
       });
       toast.success(userExists ? 'Alias changed successfully' : 'Account created successfully');
+     handleRequestFunds();  
       await checkUserExists();
       setIsAliasModalOpen(false);
     } catch (error) {
