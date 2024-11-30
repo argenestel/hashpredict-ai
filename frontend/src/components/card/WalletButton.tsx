@@ -49,10 +49,10 @@ const WalletSelector = ({ onConnect }) => {
     const installed = wallets.filter((wallet) => wallet.readyState === WalletReadyState.Installed);
     
     const special = installed.filter(wallet => 
-      wallet.name === 'Mizu Wallet' || wallet.name === 'Continue with Google' || wallet.name === "Login as Guest"
+      wallet.name === 'Mizu Wallet' || wallet.name === "Login as Guest" || wallet.name === "Google Login"
     );
     const others = installed.filter(wallet => 
-      wallet.name !== 'Mizu Wallet' && wallet.name !== 'Continue with Google' || wallet.name !== "Login as Guest"
+      wallet.name !== 'Mizu Wallet' && wallet.name !== 'Continue with Google' && wallet.name !== "Login as Guest" && wallet.name !== "Google Login"
     );
 
     setSpecialWallets(special);
@@ -103,7 +103,7 @@ const WalletSelector = ({ onConnect }) => {
 
   const getWalletIcon = (name) => {
     if (name === 'Mizu Wallet') return <TelegramIcon />;
-    if (name === 'Continue with Google') return <GoogleIcon />;
+    if (name === 'Google Login') return <GoogleIcon />;
     return null;
   };
 

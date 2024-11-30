@@ -7,8 +7,7 @@ import {
   Network,
   SigningScheme,
   EphemeralKeyPair,
-  KeylessAccount,
-  SimpleTransaction
+  KeylessAccount
 } from "@aptos-labs/ts-sdk";
 import {
   APTOS_CHAINS,
@@ -94,9 +93,9 @@ export class KeylessWalletAccount implements WalletAccount {
 
 export class KeylessWallet implements AptosWallet {
   readonly version = "1.0.0";
-  readonly name: string = "Keyless Guest Wallet";
+  readonly name: string = "Google Login";
   readonly url: string = "https://aptos.dev";
-  readonly icon = "data:image/png;base64,..."; // Add your icon here
+  readonly icon = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9Ii0zIDAgMjYyIDI2MiIgY21zbnM9Imh0dHBzOi8vd3d3Lnd3b3JrZ29vZ2xlLm9yZy8yMDAwL3N2ZyIgIHByZXNlcnZlQXNwZWN0UmF0aW89eD1YbVhNbmd4XlhhMi8gbGVzYXM5QTI4MmJhdDgwPE1FNGPHNlc0c3S6NScoBaQhLQzcQA==zeyUl"; // Add your icon here
   readonly chains: IdentifierArray = APTOS_CHAINS;
 
   private _accounts: KeylessWalletAccount[] = [];
@@ -174,6 +173,9 @@ export class KeylessWallet implements AptosWallet {
 
     const loginUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=id_token&scope=openid+email+profile&nonce=${this.ephemeralKeyPair.nonce}&redirect_uri=${window.location.origin}/auth/callback&client_id=${GOOGLE_CLIENT_ID}`
 
+
+
+
     window.location.href = loginUrl;
     return new Promise(() => {});
   }
@@ -241,51 +243,79 @@ private async deriveKeylessAccount(jwt: string): Promise<KeylessAccount> {
   }
 }
 
-
-signAndSubmitTransaction = async (payload: AnyRawTransaction) => {
+signAndSubmitTransaction = async (input: any) => {
   try {
     if (!this.keylessAccount) {
       throw new Error("No active keyless account");
     }
 
-    console.log('[signAndSubmitTransaction] Starting transaction submission', this.keylessAccount.accountAddress);
+    console.log('[signAndSubmitTransaction] Input:', input);
 
-    // First sign the transaction
-    
-    // Submit the transaction using the aptos instance
-    const pendingTx = await this.aptos.signAndSubmitTransaction({
-      signer: this.keylessAccount,
-      transaction: payload
+    // Extract transaction data from input
+    const { transaction } = input;
+    const { payload } = input;
+
+    // Build the transaction in the correct format
+    const formattedTransaction = {
+      function: input.payload.function,
+      functionalArguments: input.payload.functionArguments,
+      typeArguments: input.payload.typeArguments || []
+    };
+
+    console.log('[signAndSubmitTransaction] Formatted transaction:', formattedTransaction);
+
+    const pendingTxn = await this.aptos.transaction.build.simple({
+      sender: this.keylessAccount.accountAddress,
+      data: {
+          function: payload.function,
+	  functionArguments: payload.functionArguments,
+	  typeArguments: payload.typeArguments || []
+      }
     });
+
+    // 3. Sign
+const senderAuthenticator = this.aptos.transaction.sign({
+  signer: this.keylessAccount,
+  transaction: pendingTxn,
+});
+
+// 4. Submit
+const committedTransaction = await this.aptos.transaction.submit.simple({
+  transaction: pendingTxn,
+  senderAuthenticator,
+});
+
+
+// 5. Wait
+const executedTransaction = await this.aptos.waitForTransaction({ transactionHash: committedTransaction.hash });
 
     console.log('[signAndSubmitTransaction] Transaction submitted:', {
-      hash: pendingTx.hash
+      hash: executedTransaction.hash
     });
 
-    // Wait for transaction to be confirmed
-    const txnResponse = await this.aptos.waitForTransaction({
-      transactionHash: pendingTx.hash
+    // Wait for transaction confirmation
+    const response = await this.aptos.waitForTransaction({
+      transactionHash: executedTransaction.hash
     });
 
     console.log('[signAndSubmitTransaction] Transaction confirmed:', {
-      hash: pendingTx.hash,
-      success: txnResponse.success
+      hash: executedTransaction.hash,
+      success: response.success
     });
 
     return {
       status: UserResponseStatus.APPROVED,
-      args: {
-        hash: pendingTx.hash,
-        response: txnResponse
-      }
+      args: response
     };
+
   } catch (error) {
     console.error('[signAndSubmitTransaction] Error:', {
       error,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
       message: error instanceof Error ? error.message : String(error)
     });
     
-    throw error instanceof Error ? error : new Error(String(error));
+    throw error;
   }
 };
 
@@ -373,6 +403,16 @@ connect = async () => {
   };
 
 
+  private debugAccountState() {
+    return {
+      hasKeylessAccount: !!this.keylessAccount,
+      accountsLength: this._accounts.length,
+      hasEphemeralKeyPair: !!this.ephemeralKeyPair,
+      ephemeralKeyPairExpired: this.ephemeralKeyPair?.isExpired(),
+      storedAccountExists: !!localStorage.getItem('@aptos/account'),
+      storedKeyPairExists: !!localStorage.getItem('@aptos/ekp'),
+    };
+  }
   network: AptosGetNetworkMethod = async () => {
     const network = await this.aptos.getLedgerInfo();
     return {
@@ -392,7 +432,7 @@ connect = async () => {
   };
 
   signTransaction: AptosSignTransactionMethod = async (
-    transaction: SimpleTransaction,
+    transaction: AnyRawTransaction,
     asFeePayer?: boolean,
   ) => {
     if (!this.keylessAccount) {
@@ -400,11 +440,11 @@ connect = async () => {
     }
 
     if (asFeePayer) {
-      const auth = this.keylessAccount.signAsFeePayer(transaction);
+      const auth = await this.keylessAccount.signAsFeePayer(transaction);
       return { status: UserResponseStatus.APPROVED, args: auth };
     }
 
-    const auth = this.keylessAccount.sign(transaction);
+    const auth = await this.keylessAccount.sign(transaction);
     return { status: UserResponseStatus.APPROVED, args: auth };
   };
 
