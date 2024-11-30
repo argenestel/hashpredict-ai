@@ -27,9 +27,7 @@ import {
 
 // Constants
 const GOOGLE_CLIENT_ID = "281045837828-lgh4at0piiv178b3flfqsuo1qn0boesh.apps.googleusercontent.com";
-const REDIRECT_URI = typeof window !== 'undefined' ? 
-  `${window.location.origin}/auth/callback` : 
-  `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
 
 // Storage helpers
 const storeEphemeralKeyPair = (ekp: EphemeralKeyPair): void => {
@@ -171,7 +169,7 @@ export class KeylessWallet implements AptosWallet {
       storeEphemeralKeyPair(this.ephemeralKeyPair);
     }
 
-    const loginUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=id_token&scope=openid+email+profile&nonce=${this.ephemeralKeyPair.nonce}&redirect_uri=${window.location.origin}/auth/callback&client_id=${GOOGLE_CLIENT_ID}`
+    const loginUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=id_token&scope=openid+email+profile&nonce=${this.ephemeralKeyPair.nonce}&redirect_uri=${REDIRECT_URI}&client_id=${GOOGLE_CLIENT_ID}`
 
 
 
