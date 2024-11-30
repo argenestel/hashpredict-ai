@@ -7,7 +7,6 @@ import {
   Hex,
   Network,
   SigningScheme,
-  Ed25519PrivateKey,
 } from "@aptos-labs/ts-sdk";
 import {
   APTOS_CHAINS,
@@ -52,41 +51,6 @@ import {
  * Wallets may use or extend {@link "@wallet-standard/wallet".ReadonlyWalletAccount} which implements this interface.
  * 
  */
-
-const STORAGE_KEY = 'guest_wallet_account';
-const generatePrivateKeyBytes = (): Uint8Array => {
-  const privateKeyBytes = new Uint8Array(32);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(privateKeyBytes);
-  }
-  return privateKeyBytes;
-};
-
-
-const getAccountFromStorage = (): Account | null => {
-  const storedData = localStorage.getItem(STORAGE_KEY);
-  if (!storedData) return null;
-  
-  try {
-    const accountData = JSON.parse(storedData);
-    const privateKeyBytes = new Uint8Array(accountData.privateKeyBytes);
-    const privateKey = new Ed25519PrivateKey(privateKeyBytes);
-    return Account.fromPrivateKey({ privateKey });
-  } catch (error) {
-    console.error('Error restoring account:', error);
-    return null;
-  }
-};
-
-const saveAccountToStorage = (privateKeyBytes: Uint8Array) => {
-  const accountData = {
-    privateKeyBytes: Array.from(privateKeyBytes), // Convert to regular array for JSON storage
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(accountData));
-};
-
-
-
 export class MyWalletAccount implements AptosWalletAccount {
   /** Address of the account, corresponding with a public key. */
   address: string;
@@ -138,7 +102,7 @@ export class MyWallet implements AptosWallet {
   readonly url: string = "https://aptos.dev";
   // This should be updated whenever you release a new implementation of "MyWallet"
   readonly version = "1.0.0";
-  readonly name: string = "Login as Guest";
+  readonly name: string = "Example Wallet";
   /**
    * The icon data must be of the format:
    * 1. "data:image/"
@@ -236,20 +200,10 @@ export class MyWallet implements AptosWallet {
    */
   constructor() {
     // Create a random signer for our stub implementations.
-       let account = getAccountFromStorage();
-    if(!account){ 
-   const privateKeyBytes = generatePrivateKeyBytes();
-      const privateKey = new Ed25519PrivateKey(privateKeyBytes);
-    account = Account.fromPrivateKey({ privateKey });
-
-      saveAccountToStorage(privateKeyBytes);
-    }
-
-    this.signer = account;
+    this.signer = Account.generate();
     // We will use DEVNET since we can fund our test account via a faucet there.
-      //
     const aptosConfig = new AptosConfig({
-      network: Network.TESTNET,
+      network: Network.DEVNET,
     });
     // Use the instance Aptos connection to process requests.
     this.aptos = new Aptos(aptosConfig);
@@ -317,9 +271,9 @@ export class MyWallet implements AptosWallet {
     const network = await this.aptos.getLedgerInfo();
     return {
       // REVISION - Ensure the name and url match the chain_id your wallet responds with.
-      name: Network.TESTNET,
+      name: Network.DEVNET,
       chainId: network.chain_id,
-      url: "https://fullnode.testnet.aptoslabs.com/v1",
+      url: "https://fullnode.devnet.aptoslabs.com/v1",
     };
   };
 
