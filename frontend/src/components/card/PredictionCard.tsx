@@ -617,11 +617,14 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
         <div className="p-6 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="mb-6 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Prediction Amount:
+              Prediction Amount: 
+            </span>
+                          <span className="text-sm font-bold font-medium text-gray-700 dark:text-gray-300">
+                          {shareAmount / 10} APT
             </span>
             <div className="flex items-center space-x-2">
               <button 
-                onClick={() => setShareAmount(prev => Math.max(0.1, prev - 0.1))}
+                onClick={() => setShareAmount(prev => Math.max(1, prev - 1))}
                 className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2 hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
               >
                 -
@@ -629,12 +632,12 @@ const PredictionCard: React.FC<PredictionCardProps> = ({ prediction, onPredict }
               <input 
                 type="number" 
                 value={shareAmount}
-                onChange={(e) => setShareAmount(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
+                onChange={(e) => setShareAmount(Math.max(1, parseFloat(e.target.value) || 1))}
                 className="w-20 text-center border dark:border-navy-600 rounded-lg py-2 bg-white dark:bg-navy-900 text-gray-700 dark:text-gray-300 text-sm"
                 step="1"
               />
               <button 
-                onClick={() => setShareAmount(prev => prev + 0.1)}
+                onClick={() => setShareAmount(prev => prev + 1)}
                 className="bg-gray-200 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-full p-2 hover:bg-gray-300 dark:hover:bg-navy-600 transition-colors"
               >
                 +

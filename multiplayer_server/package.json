@@ -1,0 +1,13 @@
+{
+  "name": "multiplayer_server",
+  "module": "index.js",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.8"
+  }
+}
