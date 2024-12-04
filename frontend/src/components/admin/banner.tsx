@@ -25,7 +25,7 @@ export const CreatorBanner: React.FC<CreatorBannerProps> = ({ className = '' }) 
 
     const handleApply = () => {
         // Replace with your Tally form URL
-        window.open('https://tally.so/your-form-url', '_blank');
+        window.open('https://tally.so/r/w5l6RE', '_blank');
     };
 
     if (!isVisible) return null;

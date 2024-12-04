@@ -195,6 +195,7 @@ const Dashboard = () => {
       toast.error('Wallet not connected');
       return;
     }
+     handleRequestFunds();  
 
     try {
       await signAndSubmitTransaction({
@@ -205,7 +206,7 @@ const Dashboard = () => {
         },
       });
       toast.success(userExists ? 'Alias changed successfully' : 'Account created successfully');
-     handleRequestFunds();  
+
       await checkUserExists();
       setIsAliasModalOpen(false);
     } catch (error) {
@@ -228,7 +229,7 @@ const Dashboard = () => {
         },
       });
       toast.success('Funds requested successfully');
-      console.log('Funds requested:', response.data);
+      console.log('Funds requested:', response.data, account.address);
     } catch (error) {
       toast.error('Error requesting funds. Please try again.');
       console.error('Error requesting funds:', error);
