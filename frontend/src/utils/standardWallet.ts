@@ -289,11 +289,6 @@ export class MyWallet implements AptosWallet {
     UserResponse<AccountInfo>
   > => {
     try {
-      await this.aptos.fundAccount({
-        accountAddress: this.signer.accountAddress,
-        amount: 1_000_000_000_000,
-        options: { waitForIndexer: false }
-      });
       const account = new AccountInfo({
         address: this.signer.accountAddress,
         publicKey: this.signer.publicKey,
