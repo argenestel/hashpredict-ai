@@ -195,8 +195,12 @@ const Dashboard = () => {
       toast.error('Wallet not connected');
       return;
     }
+    try{
      handleRequestFunds();  
-
+    }
+    catch (e){
+      toast.error("Issue with faucet");
+    }
     try {
       await signAndSubmitTransaction({
         data: {
@@ -351,7 +355,7 @@ const filteredPredictions = predictions.filter(prediction => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 dark:bg-navy-900 min-h-screen">
-            <InstallPrompt />
+     <InstallPrompt />
 
     <Toaster />
     <div className="max-w-7xl mx-auto">
