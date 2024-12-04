@@ -195,12 +195,6 @@ const Dashboard = () => {
       toast.error('Wallet not connected');
       return;
     }
-    try{
-     handleRequestFunds();  
-    }
-    catch (e){
-      toast.error("Issue with faucet");
-    }
     try {
       await signAndSubmitTransaction({
         data: {
