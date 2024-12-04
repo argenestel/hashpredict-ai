@@ -396,7 +396,7 @@ const filteredPredictions = predictions.filter(prediction => {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setIsModalOpen(true)}
-                      className="bg-green-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
+                      className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
                     >
                       <IoAdd className="mr-1 sm:mr-2" /> Create
                     </motion.button>
@@ -404,7 +404,7 @@ const filteredPredictions = predictions.filter(prediction => {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setIsGeneratePopupOpen(true)}
-                      className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
+                      className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-grow sm:flex-grow-0"
                     >
                       <IoBulb className="mr-1 sm:mr-2" /> Generate
                     </motion.button>
