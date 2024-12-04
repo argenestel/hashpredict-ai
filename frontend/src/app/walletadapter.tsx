@@ -36,6 +36,10 @@ function Wallet({ children }: PropsWithChildren) {
             dappId: "57fa42a9-29c6-4f1e-939c-4eefa36d9ff5",
           },
           aptosApiKey: process.env.NEXT_PUBLIC_APTOS_API_KEY,
+          mizuwallet: {
+          manifestURL:
+            "https://assets.mz.xyz/static/config/mizuwallet-connect-manifest.json",
+        },
         }}
         onError={(error) => {
           toast.error(error?.message || "An unknown wallet error occurred", {
