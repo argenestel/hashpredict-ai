@@ -200,8 +200,8 @@ private async deriveKeylessAccount(jwt: string): Promise<KeylessAccount> {
       },
       options: {
         waitForProof: true, // Explicitly wait for proof
-        timeoutSecs: 120,   // Increase timeout for proof generation
-        proverTimeout: 120  // Add prover timeout
+        timeoutSecs: 30,   // Increase timeout for proof generation
+        proverTimeout: 30  // Add prover timeout
       }
     });
 
